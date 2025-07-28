@@ -1,5 +1,5 @@
 module FerriteHyperelastic
-
-# Write your package code here.
+export InputStruc
+include("InputStruc.jl")
 
 end
