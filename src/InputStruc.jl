@@ -1,5 +1,7 @@
 # src/InputStruc.jl
-
+"""
+Create a dynamic structure for FEM parameters
+"""
 mutable struct InputStruc
     parameters::Dict{Symbol, Any}
     function InputStruc()
