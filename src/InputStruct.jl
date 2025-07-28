@@ -2,15 +2,14 @@
 """
 Create a dynamic structure for FEM parameters
 """
-mutable struct InputStruc
+mutable struct InputStruct
     parameters::Dict{Symbol, Any}
-    function InputStruc()
+    function InputStruct()
         new(Dict{Symbol, Any}())
     end
 end
 
-# Overriding getproperty
-function Base.getproperty(obj::InputStruc, name::Symbol)
+function Base.getproperty(obj::InputStruct, name::Symbol)
     if name == :parameters || haskey(obj.parameters, name)
         return name == :parameters ? getfield(obj, :parameters) : obj.parameters[name]
     else
@@ -18,11 +17,11 @@ function Base.getproperty(obj::InputStruc, name::Symbol)
     end
 end
 
-# Overriding setproperty!
-function Base.setproperty!(obj::InputStruc, name::Symbol, value)
+function Base.setproperty!(obj::InputStruct, name::Symbol, value)
     if name == :parameters
         throw(ArgumentError("Cannot modify the `parameters` field directly."))
     else
         obj.parameters[name] = value
     end
 end
+
