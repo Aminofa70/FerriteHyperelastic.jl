@@ -72,8 +72,14 @@ input.dh = create_dofhandler(grid)
 input.ch = create_bc(input.dh )
 # Create CellValues and FacetValues
 input.cell_values, input.facet_values = create_values()
-input.ΓN =  getfacetset(grid, "pressure")
-input.traction =  [0.17, 0.0]
+
+input.ΓN = getfacetset(grid, "pressure")
+input.facetsets = [input.ΓN]
+input.traction = [0.17, 0.0]
+input.tractions = Dict(1 => input.traction)
+
+
+
 input.tol = 1e-6
 input.n_load_steps = 10
 input.n_iter_NR = 20
@@ -88,6 +94,10 @@ ux = U[1:2:end]
 uy = U[2:2:end]
 
 # Print max deformation if desired
-@info "Max ux = $(maximum(abs.(ux)))"
-@info "Max uy = $(maximum(abs.(uy)))"
+@info "Max ux = $(maximum(ux))"
+@info "Max uy = $(maximum(uy))"
+
+# Print max deformation if desired
+@info "Min ux = $(minimum(ux))"
+@info "Min uy = $(minimum(uy))"
 

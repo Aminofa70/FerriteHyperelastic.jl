@@ -8,8 +8,9 @@ function create_grid(Lx, Ly, nx, ny)
         Ferrite.Vec{2}((Lx, Ly)), Ferrite.Vec{2}((0.0, Ly))
     ]
     grid = Ferrite.generate_grid(Ferrite.Quadrilateral, (nx, ny), corners)
-    addnodeset!(grid, "support_1", x -> x[1] ≈ 0.0)
-    addfacetset!(grid, "pressure", x -> x[1] ≈ Lx)
+    addnodeset!(grid, "clamped", x -> x[1] ≈ 0.0)
+    addfacetset!(grid, "shear", x -> x[1] ≈ Lx)
+    addfacetset!(grid, "bending", x -> x[2] ≈ Ly)
     return grid
 end
 function create_values()
@@ -29,7 +30,7 @@ end
 
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
-    Ferrite.add!(ch, Ferrite.Dirichlet(:u, Ferrite.getnodeset(dh.grid, "support_1"), (x, t) -> [0.0, 0.0], [1, 2]))
+    Ferrite.add!(ch, Ferrite.Dirichlet(:u, Ferrite.getnodeset(dh.grid, "clamped"), (x, t) -> [0.0, 0.0], [1, 2]))
     Ferrite.close!(ch)
     return ch
 end
@@ -53,9 +54,9 @@ function make_constitutive_driver(C10, D1)
     return C -> constitutive_driver(C, C10, D1)
 end
 
-input.model_type = :plane_stress   # or :plane_strain or :3d
+input.model_type = :plane_strain   # or :plane_strain or :3d
 
-input.E , input.ν = 4.35, 0.45
+input.E , input.ν = 4.35, 0.49
 E = input.E
 ν = input.ν
 C10 = E / (4 * (1 + ν))
@@ -63,7 +64,7 @@ D1 = 6.0 * (1.0 - 2.0 * ν) / E
 input.material = make_constitutive_driver(C10, D1)
 
 # Define parameters for the plate and mesh
-Lx, Ly = 3.17, 1.73  # Plate dimensions
+Lx, Ly = 3.0, 1.0  # Plate dimensions
 nx, ny = 30, 30   # Number of elements along x and y
 grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 
@@ -73,19 +74,20 @@ input.ch = create_bc(input.dh )
 # Create CellValues and FacetValues
 input.cell_values, input.facet_values = create_values()
 
-
-# input.ΓN =  getfacetset(grid, "pressure")
-# input.traction =  [0.17, 0.0]
-input.ΓN = getfacetset(grid, "pressure")
-input.facetsets = [input.ΓN]
-input.traction = [0.17, 0.0]
-input.tractions = Dict(1 => input.traction)
+input.ΓN = getfacetset(grid, "shear")
+input.ΓD = getfacetset(grid, "bending")
+input.facetsets = [input.ΓN , input.ΓD ]
+input.bending = [0.0, -0.05]
+input.shear= [0.0, -0.1]
+input.tractions = Dict(
+    1 => input.shear,
+    2 => input.bending)
 
 
 
 input.tol = 1e-6
-input.n_load_steps = 10
-input.n_iter_NR = 50
+input.n_load_steps = 25
+input.n_iter_NR = 20
 input.filename = "2D_Hyper"
 input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 
@@ -103,4 +105,3 @@ uy = U[2:2:end]
 # Print max deformation if desired
 @info "Min ux = $(minimum(ux))"
 @info "Min uy = $(minimum(uy))"
-

@@ -184,24 +184,53 @@ assemble_traction_forces!(f_ext, dh, facetset, facetvalues, prescribed_traction)
 
 Assemble for traction force (surface integral)
 """
-function assemble_traction_forces!(f_ext, dh, facetset, facetvalues, prescribed_traction)
+# function assemble_traction_forces!(f_ext, dh, facetset, facetvalues, prescribed_traction)
+#     fe_ext = zeros(getnbasefunctions(facetvalues))
+#     for facet in FacetIterator(dh, facetset)
+#         reinit!(facetvalues, facet)
+#         fill!(fe_ext, 0.0)
+#         for qp in 1:getnquadpoints(facetvalues)
+#             # Calculate the global coordinate of the quadrature point.
+#             tₚ = prescribed_traction
+#             dΓ = getdetJdV(facetvalues, qp)
+#             for i in 1:getnbasefunctions(facetvalues)
+#                 Nᵢ = shape_value(facetvalues, qp, i)
+#                 fe_ext[i] += tₚ ⋅ Nᵢ * dΓ
+#             end
+#         end
+#         assemble!(f_ext, celldofs(facet), fe_ext)
+#     end
+#     return f_ext
+# end
+
+function assemble_traction_forces!(
+    f_ext,
+    dh,
+    facetsets::Vector,
+    facetvalues,
+    tractions::Dict{Int, Vector}
+)
     fe_ext = zeros(getnbasefunctions(facetvalues))
-    for facet in FacetIterator(dh, facetset)
-        reinit!(facetvalues, facet)
-        fill!(fe_ext, 0.0)
-        for qp in 1:getnquadpoints(facetvalues)
-            # Calculate the global coordinate of the quadrature point.
-            tₚ = prescribed_traction
-            dΓ = getdetJdV(facetvalues, qp)
-            for i in 1:getnbasefunctions(facetvalues)
-                Nᵢ = shape_value(facetvalues, qp, i)
-                fe_ext[i] += tₚ ⋅ Nᵢ * dΓ
+    for (idx, facetset) in enumerate(facetsets)
+        t_traction = tractions[idx]
+        for facet in FacetIterator(dh, facetset)
+            reinit!(facetvalues, facet)
+            fill!(fe_ext, 0.0)
+            for qp in 1:getnquadpoints(facetvalues)
+                dΓ = getdetJdV(facetvalues, qp)
+                for i in 1:getnbasefunctions(facetvalues)
+                    Nᵢ = shape_value(facetvalues, qp, i)
+                    fe_ext[i] += t_traction ⋅ Nᵢ * dΓ
+                end
             end
+            assemble!(f_ext, celldofs(facet), fe_ext)
         end
-        assemble!(f_ext, celldofs(facet), fe_ext)
     end
     return f_ext
 end
+
+###### for multiple load cases
+
 ################# end of assemble_traction_forces! ################################
 """
 solve_lambda3(F2d, input::InputStruct; tol=1e-10, maxit=25)
@@ -377,10 +406,10 @@ function run_plane_strain(input::InputStruct)
     fv = input.facet_values
     dh = input.dh
     ch = input.ch
-    ΓN = input.ΓN
+    ΓN = input.facetsets
     tol = input.tol
     n_load_steps = input.n_load_steps
-    traction = input.traction
+    traction = input.tractions
     filename = input.filename
     output_dir = input.output_dir
     n_iter_NR = input.n_iter_NR
@@ -397,7 +426,8 @@ function run_plane_strain(input::InputStruct)
     for O in 1:n_load_steps
         println("\n🔷 Load step $O")
 
-        traction_load = traction /n_load_steps
+        # traction_load = traction /n_load_steps
+        traction_load = Dict{Int, Vector}(k => v ./ n_load_steps for (k, v) in traction)
         f_ext = zeros(ndofs(dh))
         assemble_traction_forces!(f_ext, dh, ΓN, fv, traction_load)
 
@@ -461,10 +491,10 @@ function run_plane_stress(input::InputStruct)
     fv = input.facet_values
     dh = input.dh
     ch = input.ch
-    ΓN = input.ΓN
+    ΓN = input.facetsets
     tol = input.tol
     n_load_steps = input.n_load_steps
-    traction = input.traction
+    traction = input.tractions
     filename = input.filename
     output_dir = input.output_dir
     n_iter_NR = input.n_iter_NR
@@ -481,7 +511,8 @@ function run_plane_stress(input::InputStruct)
     for O in 1:n_load_steps
         println("\n🔷 Load step $O")
 
-        traction_load = traction /n_load_steps
+        # traction_load = traction /n_load_steps
+        traction_load = Dict{Int, Vector}(k => v ./ n_load_steps for (k, v) in traction)
         f_ext = zeros(ndofs(dh))
         assemble_traction_forces!(f_ext, dh, ΓN, fv, traction_load)
 
