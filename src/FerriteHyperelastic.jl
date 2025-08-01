@@ -11,6 +11,8 @@ include("InputStruct.jl")
 
 export elasticity_tensor_plane_stress
 export elasticity_tensor_plane_strain
+export elasticity_tensor_3D
+
 export local_stiffness_linear!
 export global_stiffness_linear!
 
@@ -27,8 +29,18 @@ export global_siffness_nonlinear_plane_stress!
 export assemble_internal_force_plane_stress!
 export assemble_global_internal_force_plane_stress!
 
+
+export local_stiffness_nonlinear_3D!
+export global_siffness_nonlinear_3D!
+export assemble_internal_force_3D!
+export assemble_global_internal_force_3D!
+
+
+
 export run_plane_strain
 export run_plane_stress
+export run_3d
+
 export run_fem
 include("functions.jl")
 ########## end of functions

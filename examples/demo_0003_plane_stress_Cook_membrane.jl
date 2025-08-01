@@ -35,39 +35,33 @@ function create_bc(dh)
     return ch
 end
 
-# function Ψ(C, μ, K)
-#     J = sqrt(det(C))
-#     I1 = tr(C)
-#     deviatoric = (μ/2)*(I1 - 3 -2log(J))
-#     volumetric = (K/2)*(log(J))^2
-#     return deviatoric+volumetric
-# end
-function Ψ(C, μ, K)
+
+function Ψ(C, C10, D1)
     J = sqrt(det(C))
     I1 = tr(C)
     I1_bar = I1 * J^(-2 / 3)
-    deviatoric = (μ/2)*(I1_bar-3)
-    volumetric = (K/2)*(log(J))^2
-    return deviatoric+volumetric
+    return C10 * (I1_bar - 3) + (1 / D1) * (J - 1)^2
 end
-function constitutive_driver(C, μ, K)
-    ∂²Ψ∂C², ∂Ψ∂C = Tensors.hessian(y -> Ψ(y, μ, K), C, :all)
+
+function constitutive_driver(C, C10, D1)
+    ∂²Ψ∂C², ∂Ψ∂C = Tensors.hessian(y -> Ψ(y, C10, D1), C, :all)
     S = 2.0 * ∂Ψ∂C
     ∂S∂C = 2.0 * ∂²Ψ∂C²
     return S, ∂S∂C
 end
-function make_constitutive_driver(μ, K)
-    return C -> constitutive_driver(C,μ, K)
+
+function make_constitutive_driver(C10, D1)
+    return C -> constitutive_driver(C, C10, D1)
 end
 
-input.model_type = :plane_stress   # or :plane_strain or :3d
+input.model_type = :plane_strain   # or :plane_strain or :3d
 
-μ = 80.19
-K = 400.890
-
-input.ν = (3K-2μ)/(6K+2μ)
-input.E = 2μ*(1 + input.ν)
-input.material = make_constitutive_driver(μ, K)
+input.E , input.ν = 4.35, 0.45
+E = input.E
+ν = input.ν
+C10 = E / (4 * (1 + ν))
+D1 = 6.0 * (1.0 - 2.0 * ν) / E
+input.material = make_constitutive_driver(C10, D1)
 
 nx, ny = 30, 30   # Number of elements along x and y
 grid = create_cook_grid(nx, ny)
@@ -77,8 +71,13 @@ input.dh = create_dofhandler(grid)
 input.ch = create_bc(input.dh )
 # Create CellValues and FacetValues
 input.cell_values, input.facet_values = create_values()
-input.ΓN =  getfacetset(grid, "traction")
-input.traction =  [0.0, 40.0]
+
+input.ΓN = getfacetset(grid, "traction")
+input.facetsets = [input.ΓN]
+input.traction = [0.0, .57]
+input.tractions = Dict(1 => input.traction)
+
+
 input.tol = 1e-6
 input.n_load_steps = 10
 input.n_iter_NR = 50
