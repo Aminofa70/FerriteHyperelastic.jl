@@ -1,6 +1,9 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
+@time begin
+    
+
 input = InputStruct()
 function create_grid(Lx, Ly, nx, ny)
     corners = [
@@ -101,3 +104,4 @@ uy = U[2:2:end]
 @info "Min ux = $(minimum(ux))"
 @info "Min uy = $(minimum(uy))"
 
+end

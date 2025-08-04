@@ -3,6 +3,8 @@ using Ferrite
 using Tensors
 using LinearAlgebra
 using Printf
+using GeometryBasics
+
 ##################### end of packages
 export InputStruct
 include("InputStruct.jl")
@@ -45,5 +47,8 @@ export run_fem
 include("functions.jl")
 ########## end of functions
 
-
+export Faces, Nodes
+export to_geometry
+export to_boundary
+include("utils_plot.jl")
 end # end of modulus

@@ -1,6 +1,9 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
+@time begin
+    
+
 input = InputStruct()
 function create_grid(Lx, Ly, nx, ny)
     corners = [
@@ -64,7 +67,7 @@ input.material = make_constitutive_driver(C10, D1)
 
 # Define parameters for the plate and mesh
 Lx, Ly = 3.17, 1.73  # Plate dimensions
-nx, ny = 30, 30   # Number of elements along x and y
+nx, ny = 50, 50   # Number of elements along x and y
 grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 
 input.grid = grid
@@ -104,3 +107,4 @@ uy = U[2:2:end]
 @info "Min ux = $(minimum(ux))"
 @info "Min uy = $(minimum(uy))"
 
+end
