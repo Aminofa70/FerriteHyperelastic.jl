@@ -1,4 +1,8 @@
-using Revise, Ferrite, FerriteHyperelastic, GLMakie, GeometryBasics
+using Revise 
+using Ferrite
+using FerriteHyperelastic
+using GLMakie
+using GeometryBasics
 function create_grid(Lx, Ly, nx, ny)
     corners = [
         Ferrite.Vec{2}((0.0, 0.0)),
@@ -8,31 +12,32 @@ function create_grid(Lx, Ly, nx, ny)
     ]
     Ferrite.generate_grid(Ferrite.Quadrilateral, (nx, ny), corners)
 end
+
 grid = create_grid(10, 10, 5, 5)
+
 V, F = FerriteHyperelastic.to_geometry(grid, Ferrite.Quadrilateral)
-# Create figure
+
+# Visualisation
 fig = Figure(size=(800, 600))
 ax = Axis(fig[1, 1], aspect=DataAspect(),
     xlabel="X", ylabel="Y",
     title="Mesh with Boundary Conditions",
     limits=(-1, 12, -1, 12))
 
-# Plot the mesh
+
 poly!(ax, GeometryBasics.Mesh(V, F),
-    color=:lightblue,
+    color=:gray,
     strokecolor=:black,
     strokewidth=1,
     shading=false)
+
 
 # add boundary condition with nodes
 addnodeset!(grid, "clamped", x -> x[1] ≈ 0.0)
 
 clamped_nodes = getnodeset(grid, "clamped")
 
-nodesset = FerriteHyperelastic.to_boundary(grid, clamped_nodes, Nodes)
-
-### Hint = only point plot because we have nodeset
-
+nodesset = FerriteHyperelastic.to_boundary(grid, clamped_nodes, Nodes, Ferrite.Quadrilateral)
 scatter!(ax, nodesset,
     color=:red,
     markersize=10,

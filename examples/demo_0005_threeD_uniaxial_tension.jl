@@ -52,7 +52,7 @@ function make_constitutive_driver(C10, D1)
     return C -> constitutive_driver(C, C10, D1)
 end
 
-input.model_type = :threeD # or :plane_strain or :3d
+input.model_type = :threeD # or :plane_strain or :threeD
 input.E , input.ν = 20.0, 0.45
 E = input.E
 ν = input.ν
