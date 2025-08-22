@@ -12,7 +12,7 @@ Supports:
 
 > * 3D
 
-> * curve fitting
+> * Curve fitting
 
 To install
 
