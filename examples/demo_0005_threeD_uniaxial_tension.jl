@@ -5,8 +5,8 @@ using PUPM
 input = InputStruct()
 # Function to create a 3D grid
 function create_grid(Lx, Ly, Lz, nx, ny, nz)
-    left = Vec(0.0, 0.0, 0.0)
-    right = Vec(Lx, Ly, Lz)
+    left = Ferrite.Vec(0.0, 0.0, 0.0)
+    right = Ferrite.Vec(Lx, Ly, Lz)
     grid = generate_grid(Hexahedron, (nx, ny, nz), left, right)
     return grid
 end
@@ -83,7 +83,8 @@ input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 
 sol = run_fem(input);
 
-U = sol.u
+
+U = sol.U_steps[end]
 
 # Split displacements into x, y, z components
 ux = U[1:3:end]

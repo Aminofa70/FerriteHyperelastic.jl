@@ -9,6 +9,7 @@ GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 Tensors = "48a634ad-e948-5137-8d70-aa71f2a747f4"
 
 [compat]
@@ -17,4 +18,5 @@ GeometryBasics = "0.5.10"
 LinearAlgebra = "1.11.0"
 LsqFit = "0.15.1"
 Printf = "1.11.0"
+Roots = "2.2.10"
 Tensors = "1.16.2"

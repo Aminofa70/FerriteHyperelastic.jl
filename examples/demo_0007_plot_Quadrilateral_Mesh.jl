@@ -13,7 +13,7 @@ function create_grid(Lx, Ly, nx, ny)
     Ferrite.generate_grid(Ferrite.Quadrilateral, (nx, ny), corners)
 end
 
-grid = create_grid(10, 10, 5, 5)
+grid = create_grid(10, 10,30, 30)
 
 V, F = FerriteHyperelastic.to_geometry(grid, Ferrite.Quadrilateral)
 

@@ -67,7 +67,7 @@ input.material = make_constitutive_driver(C10, D1)
 
 # Define parameters for the plate and mesh
 Lx, Ly = 3.17, 1.73  # Plate dimensions
-nx, ny = 50, 50   # Number of elements along x and y
+nx, ny = 10, 10   # Number of elements along x and y
 grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 
 input.grid = grid
@@ -94,7 +94,7 @@ input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 
 sol = run_fem(input);
 
-U = sol.u
+U = sol.U_steps[end]
 # Split displacements into x and y components
 ux = U[1:2:end]
 uy = U[2:2:end]
@@ -103,7 +103,7 @@ uy = U[2:2:end]
 @info "Max ux = $(maximum(ux))"
 @info "Max uy = $(maximum(uy))"
 
-# Print max deformation if desired
+# Print min deformation if desired
 @info "Min ux = $(minimum(ux))"
 @info "Min uy = $(minimum(uy))"
 

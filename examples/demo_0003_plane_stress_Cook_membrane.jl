@@ -54,16 +54,18 @@ function make_constitutive_driver(C10, D1)
     return C -> constitutive_driver(C, C10, D1)
 end
 
-input.model_type = :plane_strain   # or :plane_strain or ::threeD
+input.model_type = :plane_stress  # or :plane_strain or ::threeD
 
 input.E , input.ν = 4.35, 0.45
+# input.ν =  0.45
+# input.E  = 80.1938*2*(1+input.ν)
 E = input.E
 ν = input.ν
 C10 = E / (4 * (1 + ν))
 D1 = 6.0 * (1.0 - 2.0 * ν) / E
 input.material = make_constitutive_driver(C10, D1)
 
-nx, ny = 30, 30   # Number of elements along x and y
+nx, ny = 4, 4  # Number of elements along x and y
 grid = create_cook_grid(nx, ny)
 
 input.grid = grid
@@ -74,39 +76,29 @@ input.cell_values, input.facet_values = create_values()
 
 input.ΓN = getfacetset(grid, "traction")
 input.facetsets = [input.ΓN]
-input.traction = [0.0, .57]
+input.traction = [0.0, .5]
 input.tractions = Dict(1 => input.traction)
 
-
-input.tol = 1e-6
+## maximum horizontal deformation : 73.8555
+input.tol = 1e-8
 input.n_load_steps = 10
-input.n_iter_NR = 50
+input.n_iter_NR = 500
 input.filename = "2D_Hyper"
 input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 
 sol = run_fem(input);
 
-U = sol.u
+U = sol.U_steps[end]
 # Split displacements into x and y components
 ux = U[1:2:end]
 uy = U[2:2:end]
 
 # Print max deformation if desired
-@info "Max ux = $(maximum(abs.(ux)))"
-@info "Max uy = $(maximum(abs.(uy)))"
+@info "Max ux = $(maximum(ux))"
+@info "Max uy = $(maximum(uy))"
+
+# Print min deformation if desired
+@info "Min ux = $(minimum(ux))"
+@info "Min uy = $(minimum(uy))"
 
 
-coords = input.grid.nodes
-
-target = Vec{2}((48.0, 60.0))
-tol = 1e-6
-
-node_index = findfirst(i -> norm(coords[i].x - target) < tol, 1:length(coords))
-
-if node_index !== nothing
-    ux_node = U[2*node_index - 1]
-    uy_node = U[2*node_index]
-    println("Displacement at node (48.0, 60.0): ux = $ux_node, uy = $uy_node")
-else
-    println("Node at (48.0, 60.0) not found!")
-end

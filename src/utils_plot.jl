@@ -14,11 +14,18 @@ Convert a Ferrite triangular grid to GeometryBasics-compatible vertices and face
 - `faces`: Vector of triangular faces as `TriangleFace{Int64}`
 
 """
+# function to_geometry(grid, ::Type{Ferrite.Triangle})
+#     ferrite_cells = grid.cells
+#     ferrite_nodes = grid.nodes
+#     F = [TriangleFace{Int64}(t.nodes...) for t in ferrite_cells]
+#     V = [Point{3,Float64}(Ferrite.get_node_coordinate(n)..., 0.0) for n in ferrite_nodes]
+#     return V, F
+# end
 function to_geometry(grid, ::Type{Ferrite.Triangle})
     ferrite_cells = grid.cells
     ferrite_nodes = grid.nodes
     F = [TriangleFace{Int64}(t.nodes...) for t in ferrite_cells]
-    V = [Point{3,Float64}(Ferrite.get_node_coordinate(n)..., 0.0) for n in ferrite_nodes]
+    V = [Point{2, Float64}(Ferrite.get_node_coordinate(n)[1:2]...) for n in ferrite_nodes]
     return V, F
 end
 
@@ -37,13 +44,21 @@ Convert a Ferrite Quadrilateral grid to GeometryBasics-compatible vertices and f
 - `faces`: Vector of triangular faces as `TriangleFace{Int64}`
 
 """
+# function to_geometry(grid, ::Type{Ferrite.Quadrilateral})
+#     ferrite_cells = grid.cells
+#     ferrite_nodes = grid.nodes
+#     F = [QuadFace{Int64}(t.nodes...) for t in ferrite_cells]
+#     V = [Point{2, Float64}(Ferrite.get_node_coordinate(n)..., 0.0) for n in ferrite_nodes]
+#     return V, F
+# end
 function to_geometry(grid, ::Type{Ferrite.Quadrilateral})
     ferrite_cells = grid.cells
     ferrite_nodes = grid.nodes
     F = [QuadFace{Int64}(t.nodes...) for t in ferrite_cells]
-    V = [Point{3, Float64}(Ferrite.get_node_coordinate(n)..., 0.0) for n in ferrite_nodes]
+    V = [Point{2, Float64}(Ferrite.get_node_coordinate(n)[1:2]...) for n in ferrite_nodes]
     return V, F
 end
+
 ####################### end of to_geometry: Quadrilateral #########################
 """
 to_boundary(grid, facets, ::Type{Faces},::Type{T}) where {

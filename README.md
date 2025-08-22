@@ -12,6 +12,8 @@ Supports:
 
 > * 3D
 
+> * curve fitting
+
 To install
 
 ```
