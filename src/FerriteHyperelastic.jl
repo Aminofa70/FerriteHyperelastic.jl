@@ -38,6 +38,9 @@ export assemble_traction_forces_threeD!
 export run_plane_strain
 export run_plane_stress
 export run_threeD
+export run_plane_strain_disp
+export run_plane_stress_disp
+export run_threeD_disp
 export run_fem
 include("functions.jl")
 ##########################################

@@ -494,9 +494,434 @@ function run_threeD(input::InputStruct)::RunResult
 
     return RunResult(U_steps)
 end
+############################################################################################
+############################################################################################
+"""
+    run_plane_strain_disp(input::InputStruct) -> RunResult
 
+Solve a nonlinear plane strain finite element problem using incremental
+displacement loading and a Newton–Raphson scheme with line search. 
+
+The solver:
+  • Initializes global vectors and stiffness matrix.  
+  • Applies displacement increments over `n_load_steps`.  
+  • At each step, assembles residual and tangent stiffness, solves for
+    displacement updates, and checks convergence against `tol`.  
+  • Uses adaptive load stepping if convergence fails and line search to
+    improve robustness.  
+  • Writes the final displacement field to a VTK file for visualization.  
+
+Returns a `RunResult` containing the converged displacement solution.
+"""
+function run_plane_strain_disp(input::InputStruct)::RunResult
+    cv        = input.cell_values
+    dh        = input.dh
+    ch        = input.ch
+    filename  = input.filename
+    output_dir= input.output_dir
+    n_load_steps = input.n_load_steps
+    tol       = input.tol
+    displacement  = input.displacement
+    n_iter_NR = input.n_iter_NR
+    LINE_SEARCH_STEPS = input.LINE_SEARCH_STEPS
+    # Get number of degrees of freedom
+    _ndofs = ndofs(dh)
+    
+    # Pre-allocation of vectors for the solution and Newton increments
+    w = zeros(_ndofs)      # Solution vector (displacements and possibly pressure)
+    ΔΔw = zeros(_ndofs)    # Newton increment vector
+    w_prev = zeros(_ndofs) # Store previous solution for adaptive time stepping
+    
+    # Create the sparse matrix and residual vector
+    K = allocate_matrix(dh)
+    f = zeros(_ndofs)
+
+
+    Δλ = displacement/ n_load_steps  # Incremental load factor
+    
+    U_steps = Vector{Vector{Float64}}()   # store displacements per step
+
+    # Incremental displacement loop
+    for step in 1:n_load_steps
+        # Current load factor (scales displacement boundary conditions)
+        λ = step * Δλ
+        
+        # Update constraint handler for current load factor
+        Ferrite.update!(ch, λ)
+        
+        # Initialize solution with scaled Dirichlet boundary conditions
+        apply!(w, ch)
+        
+        newton_itr = 0
+        norm_res = Inf
+        #prog = ProgressMeter.ProgressThresh(NEWTON_TOL; desc = "Solving @ step $step of $NUM_STEPS (λ = $λ);")
+        fill!(ΔΔw, 0.0)
+        w_prev .= w  # Store current solution
+
+        # Newton iteration loop with line search
+        while true
+            newton_itr += 1
+            
+            # Assemble stiffness matrix and internal force vector
+            K_nonlinear = allocate_matrix(dh)
+            F_int = zeros(_ndofs)
+            assemble_global_plane_strain!(K_nonlinear, F_int, dh, cv, input, w)
+
+            # Compute residual
+            K .= K_nonlinear
+            f .= F_int
+            
+            # Apply Dirichlet boundary conditions to residual and stiffness matrix
+            apply_zero!(K, f, ch)
+            
+            # Compute residual norm for free degrees of freedom
+            norm_res = norm(f[Ferrite.free_dofs(ch)])
+            
+            # # Update progress meter
+            # ProgressMeter.update!(prog, norm_res; showvalues = [(:iter, newton_itr)])
+            
+            # Check for convergence
+            if norm_res < tol
+                #@info "Converged at step $step (λ = $λ) after $newton_itr iterations"
+                println("✅ Convergence reached at step $step")
+                break
+            elseif newton_itr > n_iter_NR
+                @warn "Reached maximum Newton iterations at step $step (λ = $λ), attempting smaller increment"
+                
+                # Reduce load factor increment and retry
+                Δλ /= 2
+                if Δλ < 1e-6
+                    error("Load factor increment too small, aborting at step $step")
+                end
+                step -= 1  # Step back
+                λ = step * Δλ
+                w .= w_prev  # Restore previous solution
+                Ferrite.update!(ch, λ)
+                apply!(w, ch)
+                newton_itr = 0
+                fill!(ΔΔw, 0.0)
+                continue
+            end
+            
+            # Solve for Newton increment
+            ΔΔw .= K \ f
+            apply_zero!(ΔΔw, ch)
+            
+            # Simple line search
+            α = 1.0  # Line search parameter
+            w_temp = copy(w)
+            for ls in 1:LINE_SEARCH_STEPS
+                w_temp .= w .- α .* ΔΔw
+                F_int_temp = zeros(_ndofs)
+                assemble_global_plane_strain!(K_nonlinear, F_int_temp, dh, cv, input, w_temp)
+                apply_zero!(K_nonlinear, F_int_temp, ch)
+                norm_res_temp = norm(F_int_temp[Ferrite.free_dofs(ch)])
+                
+                if norm_res_temp < norm_res
+                    w .= w_temp
+                    break
+                end
+                α /= 2
+                if ls == LINE_SEARCH_STEPS
+                    w .= w .- ΔΔw
+                end
+            end
+        end
+        
+        # Apply Dirichlet boundary conditions to solution after convergence
+        apply!(w, ch)
+        
+        push!(U_steps, copy(w))
+      
+    end
+
+    VTKGridFile(joinpath(output_dir,filename), dh) do vtk
+        write_solution(vtk, dh, w)
+    end
+    return RunResult(U_steps)
+end
+
+############################################################################################
+############################################################################################
+"""
+    run_plane_stress_disp(input::InputStruct) -> RunResult
+
+Solve a nonlinear plane stress finite element problem using incremental
+displacement loading and a Newton–Raphson scheme with line search. 
+
+The solver:
+  • Initializes global vectors and stiffness matrix.  
+  • Applies displacement increments over `n_load_steps`.  
+  • At each step, assembles residual and tangent stiffness, solves for
+    displacement updates, and checks convergence against `tol`.  
+  • Uses adaptive load stepping if convergence fails and line search to
+    improve robustness.  
+  • Writes the final displacement field to a VTK file for visualization.  
+
+Returns a `RunResult` containing the converged displacement solution.
+"""
+function run_plane_stress_disp(input::InputStruct)::RunResult
+    cv        = input.cell_values
+    dh        = input.dh
+    ch        = input.ch
+    filename  = input.filename
+    output_dir= input.output_dir
+    n_load_steps = input.n_load_steps
+    tol       = input.tol
+    displacement  = input.displacement
+    n_iter_NR = input.n_iter_NR
+    LINE_SEARCH_STEPS = input.LINE_SEARCH_STEPS
+    # Get number of degrees of freedom
+    _ndofs = ndofs(dh)
+    
+    # Pre-allocation of vectors for the solution and Newton increments
+    w = zeros(_ndofs)      # Solution vector (displacements and possibly pressure)
+    ΔΔw = zeros(_ndofs)    # Newton increment vector
+    w_prev = zeros(_ndofs) # Store previous solution for adaptive time stepping
+    
+    # Create the sparse matrix and residual vector
+    K = allocate_matrix(dh)
+    f = zeros(_ndofs)
+
+
+    Δλ = displacement/ n_load_steps  # Incremental load factor
+    
+    U_steps = Vector{Vector{Float64}}()   # store displacements per step
+
+    # Incremental displacement loop
+    for step in 1:n_load_steps
+        # Current load factor (scales displacement boundary conditions)
+        λ = step * Δλ
+        
+        # Update constraint handler for current load factor
+        Ferrite.update!(ch, λ)
+        
+        # Initialize solution with scaled Dirichlet boundary conditions
+        apply!(w, ch)
+        
+        newton_itr = 0
+        norm_res = Inf
+        #prog = ProgressMeter.ProgressThresh(NEWTON_TOL; desc = "Solving @ step $step of $NUM_STEPS (λ = $λ);")
+        fill!(ΔΔw, 0.0)
+        w_prev .= w  # Store current solution
+
+        # Newton iteration loop with line search
+        while true
+            newton_itr += 1
+            
+            # Assemble stiffness matrix and internal force vector
+            K_nonlinear = allocate_matrix(dh)
+            F_int = zeros(_ndofs)
+            assemble_global_plane_stress!(K_nonlinear, F_int, dh, cv, input, w)
+
+            # Compute residual
+            K .= K_nonlinear
+            f .= F_int
+            
+            # Apply Dirichlet boundary conditions to residual and stiffness matrix
+            apply_zero!(K, f, ch)
+            
+            # Compute residual norm for free degrees of freedom
+            norm_res = norm(f[Ferrite.free_dofs(ch)])
+            
+            # # Update progress meter
+            # ProgressMeter.update!(prog, norm_res; showvalues = [(:iter, newton_itr)])
+            
+            # Check for convergence
+            if norm_res < tol
+                #@info "Converged at step $step (λ = $λ) after $newton_itr iterations"
+                println("✅ Convergence reached at step $step")
+                break
+            elseif newton_itr > n_iter_NR
+                @warn "Reached maximum Newton iterations at step $step (λ = $λ), attempting smaller increment"
+                
+                # Reduce load factor increment and retry
+                Δλ /= 2
+                if Δλ < 1e-6
+                    error("Load factor increment too small, aborting at step $step")
+                end
+                step -= 1  # Step back
+                λ = step * Δλ
+                w .= w_prev  # Restore previous solution
+                Ferrite.update!(ch, λ)
+                apply!(w, ch)
+                newton_itr = 0
+                fill!(ΔΔw, 0.0)
+                continue
+            end
+            
+            # Solve for Newton increment
+            ΔΔw .= K \ f
+            apply_zero!(ΔΔw, ch)
+            
+            # Simple line search
+            α = 1.0  # Line search parameter
+            w_temp = copy(w)
+            for ls in 1:LINE_SEARCH_STEPS
+                w_temp .= w .- α .* ΔΔw
+                F_int_temp = zeros(_ndofs)
+                assemble_global_plane_stress!(K_nonlinear, F_int_temp, dh, cv, input, w_temp)
+                apply_zero!(K_nonlinear, F_int_temp, ch)
+                norm_res_temp = norm(F_int_temp[Ferrite.free_dofs(ch)])
+                
+                if norm_res_temp < norm_res
+                    w .= w_temp
+                    break
+                end
+                α /= 2
+                if ls == LINE_SEARCH_STEPS
+                    w .= w .- ΔΔw
+                end
+            end
+        end
+        
+        # Apply Dirichlet boundary conditions to solution after convergence
+        apply!(w, ch)
+        
+        push!(U_steps, copy(w))
+      
+    end
+
+    VTKGridFile(joinpath(output_dir,filename), dh) do vtk
+        write_solution(vtk, dh, w)
+    end
+    return RunResult(U_steps)
+end
+
+############################################################################################
+############################################################################################
+
+function run_threeD_disp(input::InputStruct)::RunResult
+    cv        = input.cell_values
+    dh        = input.dh
+    ch        = input.ch
+    filename  = input.filename
+    output_dir= input.output_dir
+    n_load_steps = input.n_load_steps
+    tol       = input.tol
+    displacement  = input.displacement
+    n_iter_NR = input.n_iter_NR
+    LINE_SEARCH_STEPS = input.LINE_SEARCH_STEPS
+    # Get number of degrees of freedom
+    _ndofs = ndofs(dh)
+    
+    # Pre-allocation of vectors for the solution and Newton increments
+    w = zeros(_ndofs)      # Solution vector (displacements and possibly pressure)
+    ΔΔw = zeros(_ndofs)    # Newton increment vector
+    w_prev = zeros(_ndofs) # Store previous solution for adaptive time stepping
+    
+    # Create the sparse matrix and residual vector
+    K = allocate_matrix(dh)
+    f = zeros(_ndofs)
+
+
+    Δλ = displacement/ n_load_steps  # Incremental load factor
+    
+    U_steps = Vector{Vector{Float64}}()   # store displacements per step
+
+    # Incremental displacement loop
+    for step in 1:n_load_steps
+        # Current load factor (scales displacement boundary conditions)
+        λ = step * Δλ
+        
+        # Update constraint handler for current load factor
+        Ferrite.update!(ch, λ)
+        
+        # Initialize solution with scaled Dirichlet boundary conditions
+        apply!(w, ch)
+        
+        newton_itr = 0
+        norm_res = Inf
+        #prog = ProgressMeter.ProgressThresh(NEWTON_TOL; desc = "Solving @ step $step of $NUM_STEPS (λ = $λ);")
+        fill!(ΔΔw, 0.0)
+        w_prev .= w  # Store current solution
+
+        # Newton iteration loop with line search
+        while true
+            newton_itr += 1
+            
+            # Assemble stiffness matrix and internal force vector
+            K_nonlinear = allocate_matrix(dh)
+            F_int = zeros(_ndofs)
+            assemble_global_3D!(K_nonlinear, F_int, dh, cv, input, w)
+
+            # Compute residual
+            K .= K_nonlinear
+            f .= F_int
+            
+            # Apply Dirichlet boundary conditions to residual and stiffness matrix
+            apply_zero!(K, f, ch)
+            
+            # Compute residual norm for free degrees of freedom
+            norm_res = norm(f[Ferrite.free_dofs(ch)])
+            
+            # # Update progress meter
+            # ProgressMeter.update!(prog, norm_res; showvalues = [(:iter, newton_itr)])
+            
+            # Check for convergence
+            if norm_res < tol
+                #@info "Converged at step $step (λ = $λ) after $newton_itr iterations"
+                println("✅ Convergence reached at step $step")
+                break
+            elseif newton_itr > n_iter_NR
+                @warn "Reached maximum Newton iterations at step $step (λ = $λ), attempting smaller increment"
+                
+                # Reduce load factor increment and retry
+                Δλ /= 2
+                if Δλ < 1e-6
+                    error("Load factor increment too small, aborting at step $step")
+                end
+                step -= 1  # Step back
+                λ = step * Δλ
+                w .= w_prev  # Restore previous solution
+                Ferrite.update!(ch, λ)
+                apply!(w, ch)
+                newton_itr = 0
+                fill!(ΔΔw, 0.0)
+                continue
+            end
+            
+            # Solve for Newton increment
+            ΔΔw .= K \ f
+            apply_zero!(ΔΔw, ch)
+            
+            # Simple line search
+            α = 1.0  # Line search parameter
+            w_temp = copy(w)
+            for ls in 1:LINE_SEARCH_STEPS
+                w_temp .= w .- α .* ΔΔw
+                F_int_temp = zeros(_ndofs)
+                assemble_global_3D!(K_nonlinear, F_int_temp, dh, cv, input, w_temp)
+                apply_zero!(K_nonlinear, F_int_temp, ch)
+                norm_res_temp = norm(F_int_temp[Ferrite.free_dofs(ch)])
+                
+                if norm_res_temp < norm_res
+                    w .= w_temp
+                    break
+                end
+                α /= 2
+                if ls == LINE_SEARCH_STEPS
+                    w .= w .- ΔΔw
+                end
+            end
+        end
+        
+        # Apply Dirichlet boundary conditions to solution after convergence
+        apply!(w, ch)
+        
+        push!(U_steps, copy(w))
+      
+    end
+
+    VTKGridFile(joinpath(output_dir,filename), dh) do vtk
+        write_solution(vtk, dh, w)
+    end
+    return RunResult(U_steps)
+end
+
+############################################################################################
+############################################################################################
 function run_fem(input::InputStruct)
-
     if input.load_type == :traction
         if input.model_type == :plane_stress
             run_plane_stress(input)
@@ -507,7 +932,22 @@ function run_fem(input::InputStruct)
         else
             error("Unknown model_type: $(input.model_type)")
         end
+
+    elseif input.load_type == :displacement
+        if input.model_type == :plane_stress
+            run_plane_stress_disp(input)
+        elseif input.model_type == :plane_strain
+            run_plane_strain_disp(input)
+        elseif input.model_type == :threeD
+            run_threeD_disp(input)
+        else
+            error("Unknown model_type: $(input.model_type)")
+        end
+
+    else
+        error("Unknown load_type: $(input.load_type)")
     end
 end
+
 ############################################################################################
 ############################################################################################
