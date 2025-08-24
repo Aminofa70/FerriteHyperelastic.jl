@@ -53,6 +53,8 @@ function make_constitutive_driver(C10, D1)
 end
 
 input.model_type = :threeD # or :plane_strain or :threeD
+input.load_type = :traction
+
 input.E , input.ν = 20.0, 0.45
 E = input.E
 ν = input.ν

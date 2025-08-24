@@ -55,6 +55,7 @@ function make_constitutive_driver(C10, D1)
 end
 
 input.model_type = :plane_stress  # or :plane_strain or ::threeD
+input.load_type = :traction
 
 input.E , input.ν = 4.35, 0.45
 # input.ν =  0.45

@@ -496,14 +496,17 @@ function run_threeD(input::InputStruct)::RunResult
 end
 
 function run_fem(input::InputStruct)
-    if input.model_type == :plane_stress
-        run_plane_stress(input)
-    elseif input.model_type == :plane_strain
-        run_plane_strain(input)
-    elseif input.model_type == :threeD
-        run_threeD(input)
-    else
-        error("Unknown model_type: $(input.model_type)")
+
+    if input.load_type == :traction
+        if input.model_type == :plane_stress
+            run_plane_stress(input)
+        elseif input.model_type == :plane_strain
+            run_plane_strain(input)
+        elseif input.model_type == :threeD
+            run_threeD(input)
+        else
+            error("Unknown model_type: $(input.model_type)")
+        end
     end
 end
 ############################################################################################
