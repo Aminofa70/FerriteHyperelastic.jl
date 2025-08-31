@@ -22,40 +22,48 @@ Notes
 - Local stiffness and internal force contributions are computed and then assembled
   into the element matrices.
 """
-function assemble_cell_3D!(ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
-    reinit!(cv, cell)
-    fill!(ke_n, 0.0)
-    fill!(fe_int, 0.0)
+function assemble_cell_3D!(
+  ke_n,
+  fe_int::Vector,
+  cell,
+  cv,
+  input::InputStruct,
+  ue
+)
+  reinit!(cv, cell)
+  fill!(ke_n, 0.0)
+  fill!(fe_int, 0.0)
 
-    ndofs = getnbasefunctions(cv)
-    
-    material = input.material
-    for qp in 1:getnquadpoints(cv)
-        dΩ = getdetJdV(cv, qp)
-        ∇u = function_gradient(cv, qp, ue)  
-        F = one(∇u) + ∇u
+  ndofs = getnbasefunctions(cv)
+  material = input.material
 
-        C = tdot(F)
-        S, ∂S∂C = material(C)
-        I = one(S)
-        ∂P∂F = otimesu(I, S) + 2 * F ⋅ ∂S∂C ⊡ otimesu(F', I)
-        P = F ⋅ S
+  for qp in 1:getnquadpoints(cv)
+      dΩ = getdetJdV(cv, qp)
+      ∇u = function_gradient(cv, qp, ue)
+      F = one(∇u) + ∇u
 
-        for i in 1:ndofs
-            ∇δui = shape_gradient(cv, qp, i)
+      C = tdot(F)
+      S, ∂S∂C = material(C)
 
-            fe_int[i] += (∇δui ⊡ P) * dΩ
+      for i in 1:ndofs
+          ∇δui = shape_gradient(cv, qp, i)
+          δEi = 0.5 * (∇δui' ⋅ F + F' ⋅ ∇δui)
 
-            ∇δui_∂P∂F = ∇δui ⊡ ∂P∂F
-            
-            for j in 1:ndofs
-                ∇δuj = shape_gradient(cv, qp, j)  
-                ke_n[i, j] += (∇δui_∂P∂F ⊡ ∇δuj) * dΩ
-            end
-        end
-    end
-    return
-end 
+          fe_int[i] += (S ⊡ δEi) * dΩ
+
+          for j in 1:ndofs
+              ∇δuj = shape_gradient(cv, qp, j)
+              δEj = 0.5 * (∇δuj' ⋅ F + F' ⋅ ∇δuj)
+
+              material_part  = (δEi ⊡ (4 * ∂S∂C) ⊡ δEj)
+              geometric_part = (S ⊡ (∇δui' ⋅ ∇δuj))
+
+              ke_n[i, j] += (material_part + geometric_part) * dΩ
+          end
+      end
+  end
+  return
+end
 ############################################################################################
 ############################################################################################
 """

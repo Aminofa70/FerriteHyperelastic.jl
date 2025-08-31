@@ -73,23 +73,30 @@ Notes
 - Local stiffness and force contributions are computed from the 2D deformation state,
   adjusted with the solved `λ₃`, and then assembled into the element matrices.
 """
-function assemble_cell_plane_stress!(ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
+function assemble_cell_plane_stress!(
+    ke_n,
+    fe_int::Vector,
+    cell,
+    cv,
+    input::InputStruct,
+    ue
+)
     reinit!(cv, cell)
     fill!(ke_n, 0.0)
     fill!(fe_int, 0.0)
 
     ndofs = getnbasefunctions(cv)
-    
     material = input.material
+
     for qp in 1:getnquadpoints(cv)
         dΩ = getdetJdV(cv, qp)
         ∇u2d = function_gradient(cv, qp, ue)
-        # Compose F2d (2x2)
-        F2d = [1.0 + ∇u2d[1, 1]  ∇u2d[1, 2];
-               ∇u2d[2, 1]        1.0 + ∇u2d[2, 2]]
-        # Plane stress: solve for λ3
+
+        F2d = [1.0 + ∇u2d[1,1]  ∇u2d[1,2];
+               ∇u2d[2,1]        1.0 + ∇u2d[2,2]]
+
         λ3 = solve_lambda3(F2d, input)
-        # Build full F
+
         F = Tensor{2,3,Float64}((
             F2d[1,1], F2d[1,2], 0.0,
             F2d[2,1], F2d[2,2], 0.0,
@@ -98,29 +105,32 @@ function assemble_cell_plane_stress!(ke_n, fe_int::Vector, cell, cv, input::Inpu
 
         C = tdot(F)
         S, ∂S∂C = material(C)
-        I = one(S)
-        ∂P∂F = otimesu(I, S) + 2 * F ⋅ ∂S∂C ⊡ otimesu(F', I)
-        P = F ⋅ S
 
         for i in 1:ndofs
             ∇δui2d = shape_gradient(cv, qp, i)
             ∇δui = Tensor{2,3,Float64}((
                 ∇δui2d[1,1], ∇δui2d[1,2], 0.0,
                 ∇δui2d[2,1], ∇δui2d[2,2], 0.0,
-                0.0,         0.0,         0.0
+                0.0,         0.0,        0.0
             ))
-            fe_int[i] += (∇δui ⊡ P) * dΩ
 
-            ∇δui_∂P∂F = ∇δui ⊡ ∂P∂F
-            
+            δEi = 0.5 * (∇δui' ⋅ F + F' ⋅ ∇δui)
+            fe_int[i] += (S ⊡ δEi) * dΩ
+
             for j in 1:ndofs
                 ∇δuj2d = shape_gradient(cv, qp, j)
                 ∇δuj = Tensor{2,3,Float64}((
                     ∇δuj2d[1,1], ∇δuj2d[1,2], 0.0,
                     ∇δuj2d[2,1], ∇δuj2d[2,2], 0.0,
-                    0.0,         0.0,         0.0
+                    0.0,         0.0,        0.0
                 ))
-                ke_n[i, j] += (∇δui_∂P∂F ⊡ ∇δuj) * dΩ
+
+                δEj = 0.5 * (∇δuj' ⋅ F + F' ⋅ ∇δuj)
+
+                material_part  = (δEi ⊡ (4 * ∂S∂C) ⊡ δEj)
+                geometric_part = (S ⊡ (∇δui' ⋅ ∇δuj))
+
+                ke_n[i, j] += (material_part + geometric_part) * dΩ
             end
         end
     end

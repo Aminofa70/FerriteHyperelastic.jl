@@ -5,6 +5,7 @@ using LinearAlgebra
 using Printf
 using GeometryBasics
 using Roots
+using IterativeSolvers
 
 ##################### end of packages
 export InputStruct
@@ -35,6 +36,7 @@ include("utils_threeD.jl")
 
 export assemble_traction_forces_twoD!
 export assemble_traction_forces_threeD!
+export initialize_solver
 export run_plane_strain
 export run_plane_stress
 export run_threeD

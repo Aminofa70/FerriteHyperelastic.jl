@@ -68,24 +68,37 @@ input.material = make_constitutive_driver(C10, D1)
 
 # Define parameters for the plate and mesh
 Lx, Ly = 3.17, 1.73  # Plate dimensions
-nx, ny = 10, 10 # Number of elements along x and y
+nx, ny = 4, 4 # Number of elements along x and y
 grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 
 input.grid = grid
 input.dh = create_dofhandler(grid)
-input.ch = create_bc(input.dh )
+input.ch = create_bc(input.dh)
 # Create CellValues and FacetValues
 input.cell_values, input.facet_values = create_values()
 
-input.displacement = 2.0
+input.displacement = 0.5
 input.tol = 1e-6
-input.n_load_steps = 10
+# input.n_load_steps = 10
 input.n_iter_NR = 500
-input.LINE_SEARCH_STEPS = 10
+#input.LINE_SEARCH_STEPS = 10
+# input.total_time = 1.0
+# input.Δt = 0.05
 input.filename = "2D_Hyper"
 input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 
-sol = run_fem(input)
+#maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
+
+maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.1,1000)
+input.maxIterPerInc = maxIterPerInc
+input.totalTime = totalTime
+input.initInc = initInc
+input.minInc = minInc
+input.maxInc = maxInc
+input.totalInc = totalInc
+sol = run_plane_strain_disp(input)
+
+#sol = run_fem(input)
 
 # Final displacement vector
 U = sol.U_steps[end]
