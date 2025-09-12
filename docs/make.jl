@@ -48,14 +48,10 @@ makedocs(
     ],
 )
 
-# deploydocs(
-#     repo = "github.com/Aminofa70/FerriteHyperelastic.jl",
-#     devbranch = "main",
-#     push_preview = false,
-# )
-
 deploydocs(
-    repo = "https://github.com/username/your-repo.git",  # your GitHub repo
-    branch = "gh-pages",                                   # branch for docs
-    make = true                                            # build docs before deploying
+    repo = "github.com/Aminofa70/FerriteHyperelastic.jl",
+    devbranch = "main",
+    push_preview = false,
 )
+
+
