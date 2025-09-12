@@ -1,33 +1,9 @@
 """
-    assemble_cell_plane_strain!(ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
+       assemble_cell_plane_strain!( ke_n, fe_int, cell, cv, input, ue)
 
-Assembles the element stiffness matrix `ke_n` and the internal force vector `fe_int`
-for a given finite element `cell` under plane strain conditions.
-
-Arguments
----------
-- `ke_n` : The element stiffness matrix to be assembled (modified in place).
-- `fe_int::Vector` : Internal force vector for the element (modified in place).
-- `cell` : The finite element cell containing nodal connectivity and geometry.
-- `cv` : Cell values (e.g., quadrature, shape function evaluations).
-- `input::InputStruct` : Material and model parameters (e.g., constitutive law, elastic modulus).
-- `ue` : Vector of nodal displacements for the element.
-
-Notes
------
-This function applies the plane strain assumption, i.e. 
-ε_z = 0 but σ_z ≠ 0, typically used for thick structures where 
-out-of-plane strains are constrained.
-
+This function assembles local internal force and tangent stiffness for plane strain
 """
-function assemble_cell_plane_strain!(
-    ke_n,
-    fe_int::Vector,
-    cell,
-    cv,
-    input::InputStruct,
-    ue
-)
+function assemble_cell_plane_strain!( ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
     reinit!(cv, cell)
     fill!(ke_n, 0.0)
     fill!(fe_int, 0.0)
@@ -76,28 +52,9 @@ end
 ############################################################################################
 ############################################################################################
 """
-    assemble_global_plane_strain!(K_nonlinear, F_int, dh, cv, input::InputStruct, u)
+       assemble_global_plane_strain!(K_nonlinear, F_int, dh, cv, input, u)
 
-Assembles the global nonlinear stiffness matrix `K_nonlinear` and the global internal
-force vector `F_int` for the entire mesh under plane strain conditions.
-
-Arguments
----------
-- `K_nonlinear` : Global stiffness matrix (modified in place).
-- `F_int` : Global internal force vector (modified in place).
-- `dh` : Discretization handler containing mesh topology, connectivity, and degrees of freedom.
-- `cv` : Cell values (e.g., quadrature rules, shape function evaluations for all cells).
-- `input::InputStruct` : Material and model parameters (e.g., constitutive law, elastic modulus).
-- `u` : Global displacement vector at all degrees of freedom.
-
-Notes
------
-This function loops over all cells in the mesh and calls the element-level assembly
-(`assemble_cell_plane_strain!`) to compute local contributions, which are then
-assembled into the global stiffness matrix and internal force vector.
-
-The plane strain assumption is applied: ε_z = 0 but σ_z ≠ 0,
-suitable for problems where out-of-plane strain is constrained (e.g., thick structures).
+This function assembles global internal force and tangent stiffness for plane strain
 """
 function assemble_global_plane_strain!(K_nonlinear, F_int, dh, cv, input::InputStruct, u)
     n = ndofs_per_cell(dh)

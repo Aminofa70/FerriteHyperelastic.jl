@@ -1,35 +1,9 @@
 """
-    assemble_cell_3D!(ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
+        assemble_cell_3D!( ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
 
-Assembles the element stiffness matrix `ke_n` and the internal force vector `fe_int`
-for a given finite element `cell` in full 3D.
-
-Arguments
----------
-- `ke_n` : Element stiffness matrix to be assembled (modified in place).
-- `fe_int::Vector` : Internal force vector for the element (modified in place).
-- `cell` : Finite element cell containing nodal connectivity and geometry.
-- `cv` : Cell values (e.g., quadrature points, shape function evaluations).
-- `input::InputStruct` : Material and model parameters (e.g., constitutive law, elastic modulus).
-- `ue` : Vector of nodal displacements for the element.
-
-Notes
------
-- No plane stress/strain assumptions are made: all three displacement components
-  and corresponding strains/stresses are active.
-- At each quadrature point, the full 3D deformation gradient, stress tensor,
-  and material tangent are evaluated.
-- Local stiffness and internal force contributions are computed and then assembled
-  into the element matrices.
+This function assembles local internal force and tangent stiffness for 3D
 """
-function assemble_cell_3D!(
-  ke_n,
-  fe_int::Vector,
-  cell,
-  cv,
-  input::InputStruct,
-  ue
-)
+function assemble_cell_3D!( ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
   reinit!(cv, cell)
   fill!(ke_n, 0.0)
   fill!(fe_int, 0.0)
@@ -67,27 +41,9 @@ end
 ############################################################################################
 ############################################################################################
 """
-    assemble_global_3D!(K_nonlinear, F_int, dh, cv, input::InputStruct, u)
+      assemble_global_3D!(K_nonlinear, F_int, dh, cv, input, u)
 
-Assembles the global nonlinear stiffness matrix `K_nonlinear` and the global
-internal force vector `F_int` for the entire mesh in full 3D.
-
-Arguments
----------
-- `K_nonlinear` : Global stiffness matrix (modified in place).
-- `F_int` : Global internal force vector (modified in place).
-- `dh` : Discretization handler containing mesh topology, connectivity, and degrees of freedom.
-- `cv` : Cell values (e.g., quadrature rules, shape function evaluations for all cells).
-- `input::InputStruct` : Material and model parameters (e.g., constitutive law, elastic modulus).
-- `u` : Global displacement vector at all degrees of freedom.
-
-Notes
------
-- This function loops over all cells in the 3D mesh and calls the element-level
-  routine `assemble_cell_3D!` to compute local stiffness and force contributions.
-- No plane stress/strain assumptions are made: all three displacement components
-  and corresponding stresses/strains are active.
-- The assembled system is consistent with full 3D finite element formulations.
+This function assembles global internal force and tangent stiffness for 3D
 """
 function assemble_global_3D!(K_nonlinear, F_int, dh, cv, input::InputStruct, u)
     n = ndofs_per_cell(dh)

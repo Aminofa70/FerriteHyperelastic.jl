@@ -81,16 +81,22 @@ input.cell_values, input.facet_values = create_values()
 
 input.ΓN = getfacetset(grid, "right")
 input.facetsets = [input.ΓN]
-input.traction = [0.2, 0.0, 0.0]
+input.traction = [1.0, 0.0, 0.0]
 input.tractions = Dict(1 => input.traction)
+
+##################################
+
+input.dof_F = []
+input.dof_U = []
 ##################################################################
+
 input.tol = 1e-6
 
 ## default
-maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
+# maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
 
 # change like the following if you need
-#maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.2,1000)
+maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-1,1e-6,0.5,1000)
 input.maxIterPerInc = maxIterPerInc
 input.totalTime = totalTime
 input.initInc = initInc

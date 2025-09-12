@@ -1,6 +1,7 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
+using GLMakie 
 ##################################################################
 # create the structure for saving fem input 
 input = InputStruct()
@@ -40,6 +41,16 @@ function create_bc(dh)
     Ferrite.close!(ch)
     return ch
 end
+
+####################################
+# creat a seperate boundary for load to get  dof
+# creat boundary condition Dirichlet (displacement)
+function create_bc_force(dh)
+    dbc = Ferrite.ConstraintHandler(dh)
+    Ferrite.add!(dbc, Ferrite.Dirichlet(:u, getfacetset(grid, "pressure"), (x, t) -> 0*x))
+    Ferrite.close!(dbc)
+    return dbc
+end
 ##################################################################
 function Ψ(C, C10, D1)
     J = sqrt(det(C))
@@ -63,7 +74,7 @@ input.model_type = :plane_strain   # or :plane_strain; :plane_stress; :threeD
 input.load_type = :traction
 ##################################################################
 
-input.E , input.ν = 4.35, 0.45
+input.E , input.ν = 3.35, 0.45
 E = input.E
 ν = input.ν
 C10 = E / (4 * (1 + ν))
@@ -73,7 +84,7 @@ input.material = make_constitutive_driver(C10, D1)
 
 # Define parameters for the plate and mesh
 Lx, Ly = 3.17, 1.73  # Plate dimensions
-nx, ny = 30, 30   # Number of elements along x and y
+nx, ny = 10, 10   # Number of elements along x and y
 grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 
 input.grid = grid
@@ -84,16 +95,30 @@ input.cell_values, input.facet_values = create_values()
 
 input.ΓN = getfacetset(grid, "pressure")
 input.facetsets = [input.ΓN]
-input.traction = [0.17, 0.0]
+input.traction = [2.2, 0.0]
 input.tractions = Dict(1 => input.traction)
+
+##################################
+dof_F_x = input.ch.prescribed_dofs[1:2:end]
+input.dof_F = dof_F_x;
+
+
+dbc= create_bc_force(input.dh)
+dof_U_x = dbc.prescribed_dofs[1:2:end] 
+input.dof_U = dof_U_x
+
+# input.dof_F = []
+# input.dof_U = []
 ##################################################################
 input.tol = 1e-6
 
 ## default
-maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
+#maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
 
 # change like the following if you need
-#maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.2,1000)
+maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.8,1000)
+
+
 input.maxIterPerInc = maxIterPerInc
 input.totalTime = totalTime
 input.initInc = initInc
@@ -106,8 +131,10 @@ input.filename = "2D_Hyper"
 input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 ##################################################################
 ################  solution 
-sol = run_fem(input)
 
+sol  = run_fem(input)
+
+# fieldnames(typeof(sol)) ->(:U_steps, :U_effect, :F_effect) 
 U = sol.U_steps[end]
 # Split displacements into x and y components
 ux = U[1:2:end]
@@ -120,4 +147,20 @@ uy = U[2:2:end]
 # Print min deformation if desired
 @info "Min ux = $(minimum(ux))"
 @info "Min uy = $(minimum(uy))"
+
+
+
+GLMakie.closeall()
+fig = Figure(size=(800, 600))
+ax = Axis(fig[1, 1], xlabel="Displacement", ylabel="Force", title="force-displacement", xgridvisible = false, ygridvisible = false)
+
+
+
+lines!((sol.U_effect), abs.(sol.F_effect), color = :black)
+scatter!((sol.U_effect), abs.(sol.F_effect), marker = :circle , color = :red)
+display(fig)
+
+
+
+
 

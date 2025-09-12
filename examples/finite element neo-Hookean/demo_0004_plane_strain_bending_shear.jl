@@ -87,6 +87,10 @@ input.tractions = Dict(
     1 => input.shear,
     2 => input.bending)
 ##################################################################
+##################################
+
+input.dof_F = []
+input.dof_U = []
 
 input.tol = 1e-6
 

@@ -6,7 +6,9 @@ using Printf
 using GeometryBasics
 using Roots
 using IterativeSolvers
-
+using BlockArrays
+using SparseArrays
+using Statistics
 ##################### end of packages
 export InputStruct
 include("InputStruct.jl")
@@ -75,7 +77,16 @@ export drucker_stability_shear
 export drucker_stability_uniaxial
 export solver_constants_hyper
 include("utils_fitting.jl")
+##########################################
+##########################################
+
+export assemble_element_hybrid_3D!
+export assemble_global_hybrid_3D!
+export assemble_traction_forces_hybrid_threeD!
+export run_hybrid_3d
 
 
-
+include("utils_hybrid.jl")
+##########################################
+##########################################
 end # end of modulus

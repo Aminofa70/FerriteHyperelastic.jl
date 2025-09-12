@@ -1,30 +1,11 @@
 """
-    solve_lambda3(F2d, input::InputStruct; tol=1e-10, maxit=25)
+   solve_lambda3(F2d, input; tol=1e-10, maxit=25)
 
-Solves for the out-of-plane stretch `λ₃` required to satisfy the
-plane stress condition (σ₃₃ = 0), given the 2D deformation gradient `F2d`.
-
-Arguments
----------
-- `F2d` : 2×2 in-plane deformation gradient matrix.
-- `input::InputStruct` : Material and model parameters (e.g., constitutive law, compressibility).
-- `tol` : Convergence tolerance for the iterative procedure (default: 1e-10).
-- `maxit` : Maximum number of iterations allowed (default: 25).
-
-Returns
--------
-- `λ₃` : The out-of-plane stretch ensuring the plane stress condition σ₃₃ = 0.
-
-Notes
------
-This function solves a nonlinear scalar equation for `λ₃`, typically using
-a Newton–Raphson iteration. The residual is based on the out-of-plane stress
-component, and iterations stop once |σ₃₃| falls below `tol` or after `maxit`
-iterations.
+This functions finds F33 in plane stress 
 """
 function solve_lambda3(F2d, input::InputStruct; tol=1e-10, maxit=25)
+    
     material = input.material
-
     # Residual: out-of-plane stress must be zero
     f(λ3) = begin
         F = Tensor{2,3,Float64}((
@@ -52,35 +33,11 @@ end
 ############################################################################################
 ############################################################################################
 """
-    assemble_cell_plane_stress!(ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
+       assemble_cell_plane_stress!(ke_n, fe_int, cell, cv, input, ue)
 
-Assembles the element stiffness matrix `ke_n` and the internal force vector `fe_int`
-for a given finite element `cell` under plane stress conditions.
-
-Arguments
----------
-- `ke_n` : Element stiffness matrix to be assembled (modified in place).
-- `fe_int::Vector` : Internal force vector for the element (modified in place).
-- `cell` : Finite element cell containing nodal connectivity and geometry.
-- `cv` : Cell values (e.g., quadrature points, shape function evaluations).
-- `input::InputStruct` : Material and model parameters (e.g., constitutive law, elastic modulus).
-- `ue` : Vector of nodal displacements for the element.
-
-Notes
------
-- The plane stress condition (σ₃₃ = 0) is enforced by solving for the out-of-plane stretch `λ₃`
-  at each quadrature point using `solve_lambda3`.  
-- Local stiffness and force contributions are computed from the 2D deformation state,
-  adjusted with the solved `λ₃`, and then assembled into the element matrices.
+This function assembles local internal force and tangent stiffness for plane stress
 """
-function assemble_cell_plane_stress!(
-    ke_n,
-    fe_int::Vector,
-    cell,
-    cv,
-    input::InputStruct,
-    ue
-)
+function assemble_cell_plane_stress!(ke_n, fe_int::Vector, cell, cv, input::InputStruct, ue)
     reinit!(cv, cell)
     fill!(ke_n, 0.0)
     fill!(fe_int, 0.0)
@@ -139,28 +96,9 @@ end
 ############################################################################################
 ############################################################################################
 """
-    assemble_global_plane_stress!(K_nonlinear, F_int, dh, cv, input::InputStruct, u)
+       assemble_global_plane_stress!(K_nonlinear, F_int, dh, cv, input, u)
 
-Assembles the global nonlinear stiffness matrix `K_nonlinear` and the global
-internal force vector `F_int` for the entire mesh under plane stress conditions.
-
-Arguments
----------
-- `K_nonlinear` : Global stiffness matrix (modified in place).
-- `F_int` : Global internal force vector (modified in place).
-- `dh` : Discretization handler containing mesh topology, connectivity, and degrees of freedom.
-- `cv` : Cell values (e.g., quadrature rules, shape function evaluations for all cells).
-- `input::InputStruct` : Material and model parameters (e.g., constitutive law, elastic modulus).
-- `u` : Global displacement vector at all degrees of freedom.
-
-Notes
------
-- This function loops over all cells in the mesh and calls the element-level assembly
-  (`assemble_cell_plane_stress!`) to compute local stiffness and force contributions.
-- The plane stress condition (σ₃₃ = 0) is enforced locally within each element
-  by solving for the out-of-plane stretch `λ₃` using `solve_lambda3`.
-- The assembled global system is consistent with 2D plane stress formulations,
-  where out-of-plane stresses vanish but out-of-plane strains may be nonzero.
+This function assembles global internal force and tangent stiffness for plane stress
 """
 function assemble_global_plane_stress!(K_nonlinear, F_int, dh, cv, input::InputStruct, u)
     n = ndofs_per_cell(dh)

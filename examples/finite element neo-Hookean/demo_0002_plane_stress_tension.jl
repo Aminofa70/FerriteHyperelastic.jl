@@ -1,28 +1,26 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
-##################################################################e
+##################################################################
+
 input = InputStruct()
 ##################################################################
-function create_cook_grid(nx, ny)
+function create_grid(Lx, Ly, nx, ny)
     corners = [
-        Vec{2}((0.0, 0.0)),
-        Vec{2}((48.0, 44.0)),
-        Vec{2}((48.0, 60.0)),
-        Vec{2}((0.0, 44.0)),
+        Ferrite.Vec{2}((0.0, 0.0)), Ferrite.Vec{2}((Lx, 0.0)),
+        Ferrite.Vec{2}((Lx, Ly)), Ferrite.Vec{2}((0.0, Ly))
     ]
-    grid = generate_grid(Quadrilateral, (nx, ny), corners)
-    # facesets for boundary conditions
-    addfacetset!(grid, "clamped", x -> norm(x[1]) ≈ 0.0)
-    addfacetset!(grid, "traction", x -> norm(x[1]) ≈ 48.0)
+    grid = Ferrite.generate_grid(Ferrite.Quadrilateral, (nx, ny), corners)
+    addnodeset!(grid, "support_1", x -> x[1] ≈ 0.0)
+    addfacetset!(grid, "pressure", x -> x[1] ≈ Lx)
     return grid
-end;
+end
 ##################################################################
 function create_values()
     dim, order = 2, 1
     ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral,order}()^dim
     qr = Ferrite.QuadratureRule{Ferrite.RefQuadrilateral}(2)
-    qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(1)
+    qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(2)
     return Ferrite.CellValues(qr, ip), Ferrite.FacetValues(qr_face, ip)
 end
 ##################################################################
@@ -35,16 +33,13 @@ end
 ##################################################################
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
-    Ferrite.add!(ch, Ferrite.Dirichlet(:u, Ferrite.getfacetset(dh.grid, "clamped"), (x, t) -> [0.0, 0.0], [1, 2]))
+    Ferrite.add!(ch, Ferrite.Dirichlet(:u, Ferrite.getnodeset(dh.grid, "support_1"), (x, t) -> [0.0, 0.0], [1, 2]))
     Ferrite.close!(ch)
     return ch
 end
 ##################################################################
 function Ψ(C, C10, D1)
     J = sqrt(det(C))
-    if det(C) < 0
-        error("determinant is negative")
-    end
     I1 = tr(C)
     I1_bar = I1 * J^(-2 / 3)
     return C10 * (I1_bar - 3) + (1 / D1) * (J - 1)^2
@@ -61,12 +56,9 @@ function make_constitutive_driver(C10, D1)
     return C -> constitutive_driver(C, C10, D1)
 end
 ##################################################################
-input.model_type = :plane_stress  # or :plane_strain or ::threeD
+input.model_type = :plane_stress   # or :plane_strain or :threeD
 input.load_type = :traction
-
-input.E, input.ν = 4.35, 0.45
-# input.ν =  0.499
-# input.E  = 80.1938*2*(1+input.ν)
+input.E , input.ν = 4.35, 0.45
 E = input.E
 ν = input.ν
 C10 = E / (4 * (1 + ν))
@@ -74,28 +66,35 @@ D1 = 6.0 * (1.0 - 2.0 * ν) / E
 input.material = make_constitutive_driver(C10, D1)
 ##################################################################
 
-nx, ny = 10, 10 # Number of elements along x and y
-grid = create_cook_grid(nx, ny)
+# Define parameters for the plate and mesh
+Lx, Ly = 3.17, 1.73  # Plate dimensions
+nx, ny = 10, 10   # Number of elements along x and y
+grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
 
 input.grid = grid
 input.dh = create_dofhandler(grid)
-input.ch = create_bc(input.dh)
+input.ch = create_bc(input.dh )
 # Create CellValues and FacetValues
 input.cell_values, input.facet_values = create_values()
 
-input.ΓN = getfacetset(grid, "traction")
-input.facetsets = [input.ΓN]
-input.traction = [0.0, 2.5]
-input.tractions = Dict(1 => input.traction)
 ##################################################################
+input.ΓN = getfacetset(grid, "pressure")
+input.facetsets = [input.ΓN]
+input.traction = [0.17, 0.0]
+input.tractions = Dict(1 => input.traction)
+##################################
 
+input.dof_F = []
+input.dof_U = []
+##################################################################
+##################################################################
 input.tol = 1e-6
 
 ## default
-#maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
+# maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
 
 # change like the following if you need
-maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.2,1000)
+maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.4,1000)
 input.maxIterPerInc = maxIterPerInc
 input.totalTime = totalTime
 input.initInc = initInc

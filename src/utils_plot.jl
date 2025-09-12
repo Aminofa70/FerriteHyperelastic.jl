@@ -1,26 +1,10 @@
 struct Faces end
 struct Nodes end
 """
-    to_geometry(grid, ::Type{Ferrite.Triangle}) -> (vertices, faces)
+    to_geometry(grid, Ferrite.Triangle)
 
 Convert a Ferrite triangular grid to GeometryBasics-compatible vertices and faces for plotting.
-
-# Arguments
-- `grid`: A Ferrite grid containing triangular elements
-- `::Type{Ferrite.Triangle}`: Type annotation ensuring only triangular grids are processed
-
-# Returns
-- `vertices`: Vector of 3D points as `Point{3,Float64}`
-- `faces`: Vector of triangular faces as `TriangleFace{Int64}`
-
 """
-# function to_geometry(grid, ::Type{Ferrite.Triangle})
-#     ferrite_cells = grid.cells
-#     ferrite_nodes = grid.nodes
-#     F = [TriangleFace{Int64}(t.nodes...) for t in ferrite_cells]
-#     V = [Point{3,Float64}(Ferrite.get_node_coordinate(n)..., 0.0) for n in ferrite_nodes]
-#     return V, F
-# end
 function to_geometry(grid, ::Type{Ferrite.Triangle})
     ferrite_cells = grid.cells
     ferrite_nodes = grid.nodes
@@ -31,26 +15,10 @@ end
 
 ####################### end of to_geometry: Trianlge #########################
 """
-    to_geometry(grid, ::Type{Ferrite.Quadrilateral}) -> (vertices, faces)
+    to_geometry(grid,Ferrite.Quadrilateral) 
 
 Convert a Ferrite Quadrilateral grid to GeometryBasics-compatible vertices and faces for plotting.
-
-# Arguments
-- `grid`: A Ferrite grid containing triangular elements
-- `::Type{Ferrite.Quadrilateral}`: Type annotation ensuring only Quadrilateral grids are processed
-
-# Returns
-- `vertices`: Vector of 3D points as `Point{3,Float64}`
-- `faces`: Vector of triangular faces as `TriangleFace{Int64}`
-
 """
-# function to_geometry(grid, ::Type{Ferrite.Quadrilateral})
-#     ferrite_cells = grid.cells
-#     ferrite_nodes = grid.nodes
-#     F = [QuadFace{Int64}(t.nodes...) for t in ferrite_cells]
-#     V = [Point{2, Float64}(Ferrite.get_node_coordinate(n)..., 0.0) for n in ferrite_nodes]
-#     return V, F
-# end
 function to_geometry(grid, ::Type{Ferrite.Quadrilateral})
     ferrite_cells = grid.cells
     ferrite_nodes = grid.nodes
@@ -61,15 +29,11 @@ end
 
 ####################### end of to_geometry: Quadrilateral #########################
 """
-to_boundary(grid, facets, ::Type{Faces},::Type{T}) where {
-    T<:Union{Ferrite.Quadrilateral, Ferrite.Triangle}
-}
+      to_boundary(grid, facets, Faces,Ferrite.Quadrilateral)
+or 
+      to_boundary(grid, facets, Faces,Ferrite.Triangle)
 
 Convert boundary facets from a Ferrite grid to 2D point coordinates for plotting.
-
-# Arguments
-- `grid`: A Ferrite grid containing the boundary facets
-- `facets`: Collection of FacetIndex tuples (cell_index, local_facet_index)
 """
 function to_boundary(grid, facets, ::Type{Faces},::Type{T}) where {
     T<:Union{Ferrite.Quadrilateral, Ferrite.Triangle}
@@ -99,18 +63,13 @@ end
 # end
 #########  end of  to_boundary(grid, facets, ::Type{face})
 """
-    to_boundary(grid, nodeset, ::Type{Nodes}, ::Type{T}) where {
-    T<:Union{Ferrite.Quadrilateral, Ferrite.Triangle}}
+    to_boundary(grid, nodeset, Nodes, Ferrite.Quadrilateral )
+
+    or
+
+    to_boundary(grid, nodeset, Nodes, Ferrite.Triangle )
 
 Convert a set of node indices from a Ferrite grid to 2D point coordinates for plotting.
-
-# Arguments
-- `grid`: A Ferrite grid containing the nodes
-- `nodeset`: Vector of node indices to convert
-- `::Type{nodes}`: Type annotation specifying node conversion mode
-
-# Returns
-- Vector of `Point2f` coordinates (Float32 for efficient plotting)
 """
 function to_boundary(grid, nodeset, ::Type{Nodes}, ::Type{T}) where {
     T<:Union{Ferrite.Quadrilateral, Ferrite.Triangle}
@@ -124,7 +83,7 @@ end
 ####################################### three dimensional functions
 
 """
-     get_faces(cell::Hexahedron)
+     get_faces(cell)
 
 function to extract all quadrilateral faces from hexahedral cells
 """
@@ -139,8 +98,9 @@ function get_faces(cell::Hexahedron)
     ]
     return [QuadFace{Int}(f...) for f in faces]
 end
+##################################################
 """
-     to_geometry(grid, ::Type{Ferrite.Hexahedron})
+     to_geometry(grid, Ferrite.Hexahedron)
 
 Convert a Ferrite Hexahedron grid to GeometryBasics-compatible vertices and faces for plotting.
 """
@@ -155,11 +115,11 @@ function to_geometry(grid, ::Type{Ferrite.Hexahedron})
     V = [Point{3,Float64}(Ferrite.get_node_coordinate(n)...) for n in grid.nodes]
     return V, F
 end
-
+##################################################
 """
-to_boundary(grid, nodeset, ::Type{Nodes}, ::Type{T}) where {
-    T<:Union{Ferrite.Hexahedron, Ferrite.Tetrahedron}
-}
+    to_boundary(grid, nodeset, Nodes, Ferrite.Hexahedron) 
+    or 
+    to_boundary(grid, nodeset, Nodes, Ferrite.Tetrahedron) 
 
 Convert a set of node indices from a Ferrite grid to 3D point coordinates for plotting.
 """
@@ -170,9 +130,9 @@ function to_boundary(grid, nodeset, ::Type{Nodes}, ::Type{T}) where {
 
     return nodesset
 end
-
+##################################################
 """
-canonical_quad(t::NTuple{4,Int})
+       canonical_quad(t)
 
 Canonicalize a quad (4 node indices) so that rotations/reversals map to the same key.
 This ensures internal faces (shared by 2 cells) are counted correctly.
@@ -188,11 +148,11 @@ function canonical_quad(t::NTuple{4,Int})
     r4 = (r[4], r[1], r[2], r[3])
     return minimum((a1,a2,a3,a4,r,r2,r3,r4))
 end
-
+##################################################
 """
-    get_boundary_faces(grid)
+    get_boundary_faces(grid , Ferrite.Hexahedron)
 
-function to get 
+Function to get faces at the boundary for Ferrite.Hexahedron 
 """
 function get_boundary_faces(grid,  ::Type{Ferrite.Hexahedron})
     face_counts = Dict{NTuple{4,Int},Int}()
@@ -212,11 +172,14 @@ function get_boundary_faces(grid,  ::Type{Ferrite.Hexahedron})
     outer_faces = [QuadFace{Int}(rep_face[k]...) for k in outer_keys]
     return outer_faces
 end
-
+##################################################
 """
-to_boundary(grid, facets, ::Type{Faces}, ::Type{T}) where {
-    T<:Union{Ferrite.Hexahedron,Ferrite.Tetrahedron}
-}
+    to_boundary(grid, facets, Faces,Ferrite.Hexahedron)
+    or
+    to_boundary(grid, facets, Faces, Ferrite.Tetrahedron)
+
+
+Convert boundary facets from a Ferrite grid to 3D point coordinates for plotting.
 """
 function to_boundary(grid, facets, ::Type{Faces}, ::Type{T}) where {
     T<:Union{Ferrite.Hexahedron,Ferrite.Tetrahedron}
@@ -232,9 +195,11 @@ function to_boundary(grid, facets, ::Type{Faces}, ::Type{T}) where {
     facet_points = unique(facet_points)
     return facet_points
 end
-
+##################################################
 """
-tet_faces_as_tuples(cell::Ferrite.Tetrahedron)
+tet_faces_as_tuples(cell)
+
+function to get faces for the tet4 element 
 """
 function tet_faces_as_tuples(cell::Ferrite.Tetrahedron)
     n = cell.nodes
@@ -246,10 +211,11 @@ function tet_faces_as_tuples(cell::Ferrite.Tetrahedron)
     ]
     return [Tuple(sort(collect(t))) for t in raw]
 end
+##################################################
 """
-    to_geometry(grid, ::Type{Ferrite.Tetrahedron})
+    to_geometry(grid, Ferrite.Tetrahedron)
 
-
+Convert a Ferrite Hexahedron grid to GeometryBasics-compatible vertices and faces for plotting.
 """
 function to_geometry(grid, ::Type{Ferrite.Tetrahedron})
 
@@ -262,8 +228,9 @@ function to_geometry(grid, ::Type{Ferrite.Tetrahedron})
     V = [Point{3,Float64}(Ferrite.get_node_coordinate(n)...) for n in grid.nodes]
     return V, F
 end
+##################################################
 """
-   canonical_tri(t::NTuple{3,Int})
+   canonical_tri(t)
 
 # Canonical form for a triangle (handles rotations + reversal = 6 cases)
 """
@@ -276,10 +243,11 @@ function canonical_tri(t::NTuple{3,Int})
     r3 = (r[3], r[1], r[2])
     return minimum((a1, a2, a3, r, r2, r3))
 end
-
+##################################################
 """
-    get_boundary_faces_tet(grid,  ::Type{Ferrite.Tetrahedron})
+    get_boundary_faces_tet(grid,  Ferrite.Tetrahedron)
 
+Function to get faces at the boundary for Ferrite.Tetrahedron
 """
 function get_boundary_faces(grid,  ::Type{Ferrite.Tetrahedron})
     face_counts = Dict{NTuple{3,Int}, Int}()

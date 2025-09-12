@@ -1,43 +1,12 @@
 """
-    assemble_traction_forces_twoD!(
-        F_ext,
-        dh,
-        facetsets::Vector,
-        facetvalues,
-        tractions::Dict{Int, <:AbstractVector},
-        u::AbstractVector
-    )
+    assemble_traction_forces_twoD!(F_ext, dh,  facetsets::Vector,  facetvalues,  
+    tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
 
-Assembles the global external force vector `F_ext` in 2D from prescribed
-surface tractions applied on boundary facets.
-
-Arguments
----------
-- `F_ext` : Global external force vector (modified in place).
-- `dh` : Discretization handler containing mesh topology, connectivity, and degrees of freedom.
-- `facetsets::Vector` : List of facet sets (groups of boundary facets where tractions are applied).
-- `facetvalues` : Precomputed quadrature and shape function values on facets.
-- `tractions::Dict{Int, <:AbstractVector}` : Mapping from facet set ID to traction vectors
-  (applied tractions in global coordinates).
-- `u::AbstractVector` : Global displacement vector (may be used if tractions depend on current configuration).
-
-Notes
------
-- For each facet in the provided `facetsets`, this function computes the
-  traction contributions at quadrature points and assembles them into `F_ext`.
-- The tractions can represent surface loads such as pressures or distributed forces
-  acting on the model boundaries.
-- This routine is intended for 2D problems; a corresponding 3D version would handle
-  surface elements instead of line elements.
+This function assembles the external force from traction for 2D plane stress and plane strain
 """
-function assemble_traction_forces_twoD!(
-    F_ext,
-    dh,
-    facetsets::Vector,
-    facetvalues,
-    tractions::Dict{Int, <:AbstractVector},
-    u::AbstractVector
-)
+function assemble_traction_forces_twoD!(F_ext, dh,  facetsets::Vector,  facetvalues, 
+     tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
+
     fe_ext = zeros(getnbasefunctions(facetvalues))
     for (idx, facetset) in enumerate(facetsets)
         t_traction = tractions[idx]
@@ -84,45 +53,16 @@ end
 ############################################################################################
 ############################################################################################
 """
-    assemble_traction_forces_threeD!(
-        F_ext,
-        dh::DofHandler{3},
-        facetsets::Vector,
-        facetvalues::FacetValues,
-        tractions::Dict{Int, <:AbstractVector},
-        u::AbstractVector
-    )
+    assemble_traction_forces_threeD!(F_ext, dh::DofHandler{3},facetsets::Vector, 
+    facetvalues::FacetValues, tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
 
-Assembles the global external force vector `F_ext` in 3D from prescribed
-surface tractions applied on boundary facets.
 
-Arguments
----------
-- `F_ext` : Global external force vector (modified in place).
-- `dh::DofHandler{3}` : Discretization handler for the 3D mesh, containing topology,
-  connectivity, and degrees of freedom.
-- `facetsets::Vector` : List of facet sets (groups of boundary surface facets where tractions are applied).
-- `facetvalues::FacetValues` : Quadrature and shape function values on the facets.
-- `tractions::Dict{Int, <:AbstractVector}` : Mapping from facet set ID to traction vectors
-  (applied tractions in global 3D coordinates).
-- `u::AbstractVector` : Global displacement vector (may be used if tractions depend on the current configuration).
-
-Notes
------
-- For each facet in the provided `facetsets`, this function computes the
-  traction contributions at quadrature points on the surface and assembles them into `F_ext`.
-- Typical use cases include pressures, surface loads, or other distributed forces
-  acting on the boundary of a 3D domain.
-- This routine is the 3D analogue of `assemble_traction_forces_twoD!`.
+This function assembles the external force from traction for 3D
 """
-function assemble_traction_forces_threeD!(
-    F_ext,
-    dh::DofHandler{3},
-    facetsets::Vector,
-    facetvalues::FacetValues,
-    tractions::Dict{Int, <:AbstractVector},
-    u::AbstractVector
-)
+function assemble_traction_forces_threeD!(F_ext, dh::DofHandler{3},facetsets::Vector,
+     facetvalues::FacetValues, tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
+
+    
     fe_ext = zeros(getnbasefunctions(facetvalues))
     for (idx, facetset) in enumerate(facetsets)
         t_traction = tractions[idx]  # Vec{3, Float64} for 3D
@@ -178,25 +118,6 @@ end
                       [minInc=1e-5], [maxInc=0.2], [totalInc=500])
 
 Initialize solver parameters for a time integration procedure.
-
-# Arguments
-- `maxIterPerInc::Int=500`: Maximum number of iterations allowed per increment.
-- `totalTime::Float64=1.0`: Total simulation time.
-- `initInc::Float64=0.1`: Initial increment size.
-- `minInc::Float64=1e-5`: Minimum allowed increment size.
-- `maxInc::Float64=0.2`: Maximum allowed increment size.
-- `totalInc::Int=500`: Total number of increments.
-
-# Behavior
-- Ensures that `initInc` lies between `minInc` and `maxInc`.
-- If `initInc > maxInc`, it is set to `maxInc`.
-- If `initInc < minInc`, it is set to `minInc`.
-- If `maxInc < minInc`, it is reset to `initInc`.
-- Throws an error if the values are inconsistent after adjustment.
-
-# Returns
-A tuple:
-(maxIterPerInc, totalTime, initInc, minInc, maxInc, totalInc)
 """
 function initialize_solver(maxIterPerInc::Int=500, totalTime::Float64=1.0,
     initInc::Float64=0.1, minInc::Float64=1e-5,
@@ -229,14 +150,21 @@ end
 ############################################################################################
 ############################################################################################
 struct RunResult
-    U_steps::Vector{Vector{Float64}}  # displacement vectors at each converged step
+    U_steps::Vector{Vector{Float64}} 
+    U_effect::Vector{Float64} 
+    F_effect::Vector{Float64} 
 end
+
 ####
 ############################################################################################
 ############################################################################################
 """
+    run_plane_strain(input)
+
+run finite element for 2D plane strain
 """
-function run_plane_strain(input::InputStruct)::RunResult
+function run_plane_strain(input::InputStruct)
+    # run_plane_strain(input::InputStruct)::RunResult
     cv         = input.cell_values
     fv         = input.facet_values
     dh         = input.dh
@@ -246,6 +174,9 @@ function run_plane_strain(input::InputStruct)::RunResult
     traction   = input.tractions
     filename   = input.filename
     output_dir = input.output_dir
+
+    dof_U = input.dof_U
+    dof_F = input.dof_F
   
     maxIterPerInc = input.maxIterPerInc
     totalTime     = input.totalTime
@@ -262,15 +193,22 @@ function run_plane_strain(input::InputStruct)::RunResult
     Residual = zeros(ndofs_dh)
     Total_F  = zeros(ndofs_dh)
 
-    U_steps = Vector{Vector{Float64}}()   # store displacements per step
+    
 
-
+    
+    F_int = zeros(ndofs_dh)  
+     
+    U_steps = Vector{Vector{Float64}}() 
+    F_effect = Vector{Float64}()   
+    U_effect = Vector{Float64}() 
+      
     conv_flag    = 0
     deltaT       = initInc 
     tot_time     = 0.0 
     tot_incr     = 1 
     failure_flag = 0 
-    
+
+
     while tot_time <= totalTime
         if tot_time == totalTime || deltaT == 0.0
             println("Analysis ended successfully.")
@@ -285,26 +223,26 @@ function run_plane_strain(input::InputStruct)::RunResult
         end
         
         n = totalTime / deltaT
-
-
+        
         Incremental_F = zeros(ndofs_dh)
 
         # distribute traction incrementally
         traction_load = Dict{Int, Vector}(k => v ./ n for (k, v) in traction)
+    
+       
         F_ext = zeros(ndofs_dh)
         assemble_traction_forces_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit)
         
+        
         Incremental_F = F_ext
         Total_F .+= Incremental_F
-       
         
+           
         for L = 1:maxIterPerInc
             
             K_nonlinear = allocate_matrix(dh)
             F_int = zeros(ndofs_dh)
             assemble_global_plane_strain!(K_nonlinear, F_int, dh, cv, input, Uinit)
-
-            
 
             Residual .= Total_F - F_int
             Ferrite.update!(ch, tot_time + deltaT)  # Changed from tot_time
@@ -319,16 +257,34 @@ function run_plane_strain(input::InputStruct)::RunResult
                 break
             else
                 conv_flag=0;
-            end
-            
+            end  
         end 
 
         
         if conv_flag==1
-            tot_time=tot_time+ deltaT;
-    
-            H1="CONVERGENCE IS REACHED FOR increment : $(tot_incr) with the converged time incremet of: $(deltaT) & total time of: $(tot_time)";println(H1);
-            U=copy(Uinit);
+
+            tot_time =  tot_time+ deltaT;
+
+            # H1 = "CONVERGENCE IS REACHED FOR increment: $tot_incr " *
+            #      "with the converged time increment of: $deltaT " *
+            #      "& total time of: $tot_time"
+
+            H1 = "Converged at increment $tot_incr, Δt = $deltaT, total time = $tot_time"
+            println(H1)
+
+            println(H1);
+            U = copy(Uinit);
+            # find the mean of U
+
+            if isempty(dof_U) && isempty(dof_F)
+                U_effect = []
+                F_effect = []
+            else
+                U_mean = mean(U[dof_U])
+                F_sum = sum(F_int[dof_F])
+                push!(U_effect, U_mean)
+                push!(F_effect, F_sum)
+            end
     
             deltaT=deltaT*(1.25);  # increasing time increment for speed up
             if deltaT >= maxInc
@@ -350,16 +306,24 @@ function run_plane_strain(input::InputStruct)::RunResult
             end
     
         end
+
         push!(U_steps, copy(U))
+        # push!(U_effect, U_mean )
+        # push!(F_effect, F_sum)
     end 
     VTKGridFile(joinpath(output_dir,filename), dh) do vtk
         write_solution(vtk, dh, U)
     end
-    return RunResult(U_steps)
+  
+    
+    return RunResult(U_steps, U_effect, F_effect)
 end
 ############################################################################################
 ############################################################################################
 """
+    run_plane_stress(input)
+   
+run finite element for plane stress
 """
 function run_plane_stress(input::InputStruct)::RunResult
     cv         = input.cell_values
@@ -381,13 +345,17 @@ function run_plane_stress(input::InputStruct)::RunResult
 
     ndofs_dh = ndofs(dh)
 
-    
+    dof_U = input.dof_U
+    dof_F = input.dof_F
+
     U      = zeros(ndofs_dh)   # total displacement
     Uinit  = zeros(ndofs_dh)   # running displacement for current step
     Residual = zeros(ndofs_dh)
     Total_F  = zeros(ndofs_dh)
 
-    U_steps = Vector{Vector{Float64}}()   # store displacements per step
+    U_steps = Vector{Vector{Float64}}() 
+    F_effect = Vector{Float64}()   
+    U_effect = Vector{Float64}() 
 
 
     conv_flag    = 0
@@ -452,8 +420,19 @@ function run_plane_stress(input::InputStruct)::RunResult
         if conv_flag==1
             tot_time=tot_time+ deltaT;
     
-            H1="CONVERGENCE IS REACHED FOR increment : $(tot_incr) with the converged time incremet of: $(deltaT) & total time of: $(tot_time)";println(H1);
+            H1 = "Converged at increment $tot_incr, Δt = $deltaT, total time = $tot_time"
+            println(H1);
             U=copy(Uinit);
+
+            if isempty(dof_U) && isempty(dof_F)
+                U_effect = []
+                F_effect = []
+            else
+                U_mean = mean(U[dof_U])
+                F_sum = sum(F_int[dof_F])
+                push!(U_effect, U_mean)
+                push!(F_effect, F_sum)
+            end
     
             deltaT=deltaT*(1.25);  # increasing time increment for speed up
             if deltaT >= maxInc
@@ -476,15 +455,21 @@ function run_plane_stress(input::InputStruct)::RunResult
     
         end
         push!(U_steps, copy(U))
+        # push!(U_effect, U_mean )
+        # push!(F_effect, F_sum)
     end 
     VTKGridFile(joinpath(output_dir,filename), dh) do vtk
         write_solution(vtk, dh, U)
     end
-    return RunResult(U_steps)
+    return RunResult(U_steps, U_effect, F_effect)
 end
 ############################################################################################
 ############################################################################################
 """
+    run_threeD(input)
+
+
+run finite element for 3D 
 """
 function run_threeD(input::InputStruct)::RunResult
     cv         = input.cell_values
@@ -506,13 +491,17 @@ function run_threeD(input::InputStruct)::RunResult
 
     ndofs_dh = ndofs(dh)
 
-    
+    dof_U = input.dof_U
+    dof_F = input.dof_F
+
     U      = zeros(ndofs_dh)   # total displacement
     Uinit  = zeros(ndofs_dh)   # running displacement for current step
     Residual = zeros(ndofs_dh)
     Total_F  = zeros(ndofs_dh)
 
-    U_steps = Vector{Vector{Float64}}()   # store displacements per step
+    U_steps = Vector{Vector{Float64}}() 
+    F_effect = Vector{Float64}()   
+    U_effect = Vector{Float64}() 
 
 
     conv_flag    = 0
@@ -577,10 +566,20 @@ function run_threeD(input::InputStruct)::RunResult
         if conv_flag==1
             tot_time=tot_time+ deltaT;
     
-            H1="CONVERGENCE IS REACHED FOR increment : $(tot_incr) with the converged time incremet of: $(deltaT) & total time of: $(tot_time)";println(H1);
+            H1 = "Converged at increment $tot_incr, Δt = $deltaT, total time = $tot_time"
+            println(H1);
             U=copy(Uinit);
-    
-            deltaT=deltaT*(1.25);  # increasing time increment for speed up
+            if isempty(dof_U) && isempty(dof_F)
+                U_effect = []
+                F_effect = []
+            else
+                U_mean = mean(U[dof_U])
+                F_sum = sum(F_int[dof_F])
+                push!(U_effect, U_mean)
+                push!(F_effect, F_sum)
+            end
+
+            deltaT = deltaT*(1.25);  # increasing time increment for speed up
             if deltaT >= maxInc
                 deltaT = maxInc;
             end
@@ -601,16 +600,20 @@ function run_threeD(input::InputStruct)::RunResult
     
         end
         push!(U_steps, copy(U))
+        # push!(U_effect, U_mean )
+        # push!(F_effect, F_sum)
     end 
     VTKGridFile(joinpath(output_dir,filename), dh) do vtk
         write_solution(vtk, dh, U)
     end
-    return RunResult(U_steps)
+    return RunResult(U_steps, U_effect, F_effect)
 end
 ############################################################################################
 ############################################################################################
 """
+     run_plane_strain_disp(input)
 
+run finite element for plane stain with displacement load
 """
 function run_plane_strain_disp(input::InputStruct)::RunResult
     cv         = input.cell_values
@@ -629,11 +632,18 @@ function run_plane_strain_disp(input::InputStruct)::RunResult
     maxInc        = input.maxInc
     totalInc      = input.totalInc
 
+    dof_U = input.dof_U
+    dof_F = input.dof_F
+
+
     ndofs_dh = ndofs(dh)
     U      = zeros(ndofs_dh)   # total displacement
     U_prev = zeros(ndofs_dh)
 
-    U_steps = Vector{Vector{Float64}}()
+    U_steps = Vector{Vector{Float64}}() 
+    F_effect = Vector{Float64}()   
+    U_effect = Vector{Float64}() 
+
 
     conv_flag    = 0
     deltaT       = initInc
@@ -693,7 +703,17 @@ function run_plane_strain_disp(input::InputStruct)::RunResult
         if conv_flag == 1
             tot_time = tot_time + deltaT
 
-            println("CONVERGENCE IS REACHED FOR increment : $(tot_incr) with the converged time incremet of: $(deltaT) & total time of: $(tot_time)")
+            H1 = "Converged at increment $tot_incr, Δt = $deltaT, total time = $tot_time"
+            println(H1);
+            if isempty(dof_U) && isempty(dof_F)
+                U_effect = []
+                F_effect = []
+            else
+                U_mean = mean(U[dof_U])
+                F_sum = sum(F_int[dof_F])
+                push!(U_effect, U_mean)
+                push!(F_effect, F_sum)
+            end
 
             push!(U_steps, copy(U))
 
@@ -720,12 +740,14 @@ function run_plane_strain_disp(input::InputStruct)::RunResult
     VTKGridFile(joinpath(output_dir, filename), dh) do vtk
         write_solution(vtk, dh, U)
     end
-    return RunResult(U_steps)
+    return RunResult(U_steps, U_effect, F_effect)
 end
 ############################################################################################
 ############################################################################################
 """
+    run_plane_stress_disp(input)
 
+run finite element for plane stress with displacement load 
 """
 function run_plane_stress_disp(input::InputStruct)::RunResult
     cv         = input.cell_values
@@ -745,10 +767,16 @@ function run_plane_stress_disp(input::InputStruct)::RunResult
     totalInc      = input.totalInc
 
     ndofs_dh = ndofs(dh)
+
+    dof_U = input.dof_U
+    dof_F = input.dof_F
+
     U      = zeros(ndofs_dh)   # total displacement
     U_prev = zeros(ndofs_dh)
 
-    U_steps = Vector{Vector{Float64}}()
+    U_steps = Vector{Vector{Float64}}() 
+    F_effect = Vector{Float64}()   
+    U_effect = Vector{Float64}() 
 
     conv_flag    = 0
     deltaT       = initInc
@@ -808,8 +836,18 @@ function run_plane_stress_disp(input::InputStruct)::RunResult
         if conv_flag == 1
             tot_time = tot_time + deltaT
 
-            println("CONVERGENCE IS REACHED FOR increment : $(tot_incr) with the converged time incremet of: $(deltaT) & total time of: $(tot_time)")
+            H1 = "Converged at increment $tot_incr, Δt = $deltaT, total time = $tot_time"
+            println(H1)
 
+            if isempty(dof_U) && isempty(dof_F)
+                U_effect = []
+                F_effect = []
+            else
+                U_mean = mean(U[dof_U])
+                F_sum = sum(F_int[dof_F])
+                push!(U_effect, U_mean)
+                push!(F_effect, F_sum)
+            end
             push!(U_steps, copy(U))
 
             deltaT = deltaT * (1.25)   # increase step size
@@ -835,12 +873,15 @@ function run_plane_stress_disp(input::InputStruct)::RunResult
     VTKGridFile(joinpath(output_dir, filename), dh) do vtk
         write_solution(vtk, dh, U)
     end
-    return RunResult(U_steps)
+    return RunResult(U_steps, U_effect, F_effect)
 end
 
 ############################################################################################
 ############################################################################################
 """
+    run_threeD_disp(input)
+
+run finite element code for 3D with displacement load
 """
 function run_threeD_disp(input::InputStruct)::RunResult
     cv         = input.cell_values
@@ -863,7 +904,9 @@ function run_threeD_disp(input::InputStruct)::RunResult
     U      = zeros(ndofs_dh)   # total displacement
     U_prev = zeros(ndofs_dh)
 
-    U_steps = Vector{Vector{Float64}}()
+    U_steps = Vector{Vector{Float64}}() 
+    F_effect = Vector{Float64}()   
+    U_effect = Vector{Float64}() 
 
     conv_flag    = 0
     deltaT       = initInc
@@ -923,8 +966,17 @@ function run_threeD_disp(input::InputStruct)::RunResult
         if conv_flag == 1
             tot_time = tot_time + deltaT
 
-            println("CONVERGENCE IS REACHED FOR increment : $(tot_incr) with the converged time incremet of: $(deltaT) & total time of: $(tot_time)")
-
+            H1 = "Converged at increment $tot_incr, Δt = $deltaT, total time = $tot_time"
+            println(H1);
+            if isempty(dof_U) && isempty(dof_F)
+                U_effect = []
+                F_effect = []
+            else
+                U_mean = mean(U[dof_U])
+                F_sum = sum(F_int[dof_F])
+                push!(U_effect, U_mean)
+                push!(F_effect, F_sum)
+            end
             push!(U_steps, copy(U))
 
             deltaT = deltaT * (1.25)   # increase step size
@@ -950,9 +1002,15 @@ function run_threeD_disp(input::InputStruct)::RunResult
     VTKGridFile(joinpath(output_dir, filename), dh) do vtk
         write_solution(vtk, dh, U)
     end
-    return RunResult(U_steps)
+    return RunResult( U_steps, U_effect, F_effect )
 end
+####################
 
+"""
+    run_fem(input)
+
+the general fem runner for all cases 2D & 3D 
+"""
 function run_fem(input::InputStruct)
     if input.load_type == :traction
         if input.model_type == :plane_stress

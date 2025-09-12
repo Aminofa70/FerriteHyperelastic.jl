@@ -1,7 +1,11 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
+const Vec = Ferrite.Vec
+
+##################################################################e
 input = InputStruct()
+##################################################################
 function create_cook_grid(nx, ny)
     corners = [
         Vec{2}((0.0, 0.0)),
@@ -15,6 +19,7 @@ function create_cook_grid(nx, ny)
     addfacetset!(grid, "traction", x -> norm(x[1]) ≈ 48.0)
     return grid
 end;
+##################################################################
 function create_values()
     dim, order = 2, 1
     ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral,order}()^dim
@@ -22,20 +27,21 @@ function create_values()
     qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(1)
     return Ferrite.CellValues(qr, ip), Ferrite.FacetValues(qr_face, ip)
 end
+##################################################################
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
     Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefQuadrilateral,1}()^2)
     Ferrite.close!(dh)
     return dh
 end
+##################################################################
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
     Ferrite.add!(ch, Ferrite.Dirichlet(:u, Ferrite.getfacetset(dh.grid, "clamped"), (x, t) -> [0.0, 0.0], [1, 2]))
     Ferrite.close!(ch)
     return ch
 end
-
-
+##################################################################
 function Ψ(C, C10, D1)
     J = sqrt(det(C))
     if det(C) < 0
@@ -45,31 +51,30 @@ function Ψ(C, C10, D1)
     I1_bar = I1 * J^(-2 / 3)
     return C10 * (I1_bar - 3) + (1 / D1) * (J - 1)^2
 end
-
+##################################################################
 function constitutive_driver(C, C10, D1)
     ∂²Ψ∂C², ∂Ψ∂C = Tensors.hessian(y -> Ψ(y, C10, D1), C, :all)
     S = 2.0 * ∂Ψ∂C
     ∂S∂C = 2.0 * ∂²Ψ∂C²
     return S, ∂S∂C
 end
-
+##################################################################
 function make_constitutive_driver(C10, D1)
     return C -> constitutive_driver(C, C10, D1)
 end
-
+##################################################################
 input.model_type = :plane_stress  # or :plane_strain or ::threeD
 input.load_type = :traction
 
 input.E, input.ν = 4.35, 0.45
-# input.ν =  0.45
-# input.E  = 80.1938*2*(1+input.ν)
 E = input.E
 ν = input.ν
 C10 = E / (4 * (1 + ν))
 D1 = 6.0 * (1.0 - 2.0 * ν) / E
 input.material = make_constitutive_driver(C10, D1)
+##################################################################
 
-nx, ny = 1, 1 # Number of elements along x and y
+nx, ny = 10, 10 # Number of elements along x and y
 grid = create_cook_grid(nx, ny)
 
 input.grid = grid
@@ -80,64 +85,49 @@ input.cell_values, input.facet_values = create_values()
 
 input.ΓN = getfacetset(grid, "traction")
 input.facetsets = [input.ΓN]
-input.traction = [0.0, 2.1]
+input.traction = [0.0, 1.17]
 input.tractions = Dict(1 => input.traction)
+##################################################################
+##################################
 
-
+input.dof_F = []
+input.dof_U = []
+##################################################################
 input.tol = 1e-6
-# input.n_load_steps = 10
-# input.n_iter_NR = 500
-input.filename = "2D_Hyper"
-input.output_dir = "/Users/aminalibakhshi/Desktop/vtu_geo/"
 
-# sol = run_fem(input);
+## default
+maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
 
-maxIterPerInc, totalTime, initInc, minInc, maxInc, totalInc = initialize_solver()
-# maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,.2,1000)
+# change like the following if you need
+# maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.2,1000)
+
+
 input.maxIterPerInc = maxIterPerInc
 input.totalTime = totalTime
 input.initInc = initInc
 input.minInc = minInc
 input.maxInc = maxInc
 input.totalInc = totalInc
+##################################################################
 
-ndofs_dh = ndofs(input.dh)
+input.filename = "2D_Hyper"
+input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
+##################################################################
+################  solution 
+sol = run_fem(input)
 
-# Uinit = zeros(ndofs_dh)   # running displacement for current step
-Uinit= [ 0.4, 0.43, 0.45, 0.6, 0.7, 7, .5 , 0.3];
-K_nonlinear = allocate_matrix(input.dh)
-F_int = zeros(ndofs_dh)
-assemble_global_plane_strain!(K_nonlinear, F_int, input.dh, input.cell_values, input, Uinit)
-n = 10
-Incremental_F = zeros(ndofs_dh)
+U = sol.U_steps[end]
+# Split displacements into x and y components
+ux = U[1:2:end]
+uy = U[2:2:end]
 
-traction_load = Dict(k => v ./ n for (k, v) in input.tractions)
+# Print max deformation if desired
+@info "Max ux = $(maximum(ux))"
+@info "Max uy = $(maximum(uy))"
 
-F_ext = zeros(ndofs_dh)
-assemble_traction_forces_twoD!(F_ext, input.dh, input.facetsets, input.facet_values, traction_load, Uinit)
-Total_F = zeros(ndofs_dh)
-Incremental_F = F_ext
-Total_F .+= Incremental_F
-Residual = zeros(ndofs_dh)
-Residual .= Total_F - F_int
-#Ferrite.update!(input.ch, tot_time + deltaT)  # Changed from tot_time
-apply!(K_nonlinear, Residual, input.ch)
+# Print min deformation if desired
+@info "Min ux = $(minimum(ux))"
+@info "Min uy = $(minimum(uy))"
 
-deltaU = K_nonlinear \ Residual
-
-# sol = run_plane_strain(input)
-# #sol = run_plane_stress(input)
-# U = sol.U_steps[end]
-# # Split displacements into x and y components
-# ux = U[1:2:end]
-# uy = U[2:2:end]
-
-# # Print max deformation if desired
-# @info "Max ux = $(maximum(ux))"
-# @info "Max uy = $(maximum(uy))"
-
-# # Print min deformation if desired
-# @info "Min ux = $(minimum(ux))"
-# @info "Min uy = $(minimum(uy))"
 
 

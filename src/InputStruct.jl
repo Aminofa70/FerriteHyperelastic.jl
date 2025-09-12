@@ -1,5 +1,8 @@
 # src/InputStruc.jl
 """
+     input = InputStruct()
+
+
 Create a dynamic structure for FEM parameters
 """
 mutable struct InputStruct
