@@ -41,6 +41,7 @@ makedocs(
         "Home" => "index.md",
         "Install" => "install.md",
         "Functions" => "functions.md",
+        "Instruction" => "instruction.md",
         "Examples" => [
             "plane strain tension" => "examples/plane_strain_tension.md",
         ],
