@@ -3,8 +3,8 @@
 First we need to activate a dynamic structure to have all finite element parameters in it. We do it using 
 ```
 input = InputStruct()
+```
 
-````
 Here ```input``` is the a structure that will contains all fem parameters. 
 
 Now using [Ferrite.jl](https://ferrite-fem.github.io/Ferrite.jl/stable/) we define geometry, mesh, fem parameters for interpolation and numerical integration and define degree-of-freedom. More details for this parts can be found in [Ferrite.jl](https://ferrite-fem.github.io/Ferrite.jl/stable/). 
@@ -229,6 +229,10 @@ scatter!((sol.U_effect), abs.(sol.F_effect), marker = :circle , color = :red)
 display(fig)
 
 ```
+
+
+
+
 
 
 
