@@ -41,11 +41,12 @@ makedocs(
         "Home" => "index.md",
         "Install" => "install.md",
         "Functions" => "functions.md",
-        "Instruction" => [
-            "instruction fem" => "instruction/instruction_fem.md",
+        "Tutorials" => [
+            "tutorial fem" => "tutorials/tutorial_fem.md",
+            "tutorial curve fitting" => "tutorials/tutorial_curve_fitting.md",
         ],
         "Examples" => [
-            "plane strain tension" => "examples/plane_strain_tension.md",
+            "plane strain uniaxial tension" => "examples/plane_strain_tension.md",
         ],
     ],
 )
@@ -55,7 +56,7 @@ deploydocs(
     devbranch = "main",
     push_preview = false,
     versions = [
-        "stable" => "v1.0.0",  # replace with your actual tag
+        "stable" => "v1.0.0",  
         "dev" => "main",
     ],
 )

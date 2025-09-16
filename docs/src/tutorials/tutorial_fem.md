@@ -1,5 +1,5 @@
-# This is the instruction to use the package
-## Guid to use Finite Element(fem)
+# This is the tutorial to use the package
+## Guid to use Finite Element (fem)
 First we need to activate a dynamic structure to have all finite element parameters in it. We do it using 
 ```
 input = InputStruct()
@@ -39,7 +39,7 @@ addfacetset!(grid, "pressure", x -> x[1] ≈ Lx)
 ```
 are used to define our boundary conditions.
 
-If you wan to chose other element types like tri3 and so on please refer to [generate_grid](https://github.com/Ferrite-FEM/Ferrite.jl/blob/f1d1d0deef7bdaf019bd63ce9e8d959b6ebc8c4d/src/Grid/grid_generators.jl#L1-L7) .
+If you want to chose other element types like tri3 and so on please refer to [generate_grid](https://github.com/Ferrite-FEM/Ferrite.jl/blob/f1d1d0deef7bdaf019bd63ce9e8d959b6ebc8c4d/src/Grid/grid_generators.jl#L1-L7) .
 
 Next step is defining the fem values (interpolation and numerical integration)
 

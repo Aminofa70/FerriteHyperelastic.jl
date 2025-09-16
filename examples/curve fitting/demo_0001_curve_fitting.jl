@@ -26,3 +26,5 @@ else
 end
 
 mat_cons_solver = solver_constants_hyper(data_type,modelType,strainExp,Sexp)
+
+
