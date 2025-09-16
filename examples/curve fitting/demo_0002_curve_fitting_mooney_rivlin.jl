@@ -26,9 +26,9 @@ C2 = mat_cons_solver[2]
 λ1 = @. ϵ + 1
 λ = λ1
 λ2 = @. 1 / sqrt(λ)
-λ3 = λ2   # usually λ3 = λ2 for incompressibility (plane stress/strain assumption)
+λ3 = λ2   
 
-# Neo-Hookean stress (uniaxial nominal stress)
+# Mooney-Rivlin stress (uniaxial nominal stress)
 P_model = @. (2*C1 + ((2*C2)/λ))* (λ - 1 / λ^2)
 
 # Plot results
