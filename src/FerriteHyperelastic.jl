@@ -1,4 +1,5 @@
 module FerriteHyperelastic
+############################
 using Ferrite
 using Tensors
 using LinearAlgebra
@@ -46,6 +47,7 @@ export run_plane_strain_disp
 export run_plane_stress_disp
 export run_threeD_disp
 export run_fem
+
 include("functions.jl")
 ##########################################
 ##########################################
@@ -79,14 +81,15 @@ export solver_constants_hyper
 include("utils_fitting.jl")
 ##########################################
 ##########################################
-
-export assemble_element_hybrid_3D!
-export assemble_global_hybrid_3D!
-export assemble_traction_forces_hybrid_threeD!
-export run_hybrid_3d
-
+export assemble_element_plane_strain!
+export assemble_element_threeD!
+export assemble_global!
+export assemble_traction_forces_twoD_hybrid!
+export assemble_traction_forces_threeD_hybrid!
+export run_fem_hybrid
 
 include("utils_hybrid.jl")
+
 ##########################################
 ##########################################
 end # end of modulus
