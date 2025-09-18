@@ -77,6 +77,7 @@ input.load_type = :traction
 input.E , input.ν = 3.35, 0.45
 E = input.E
 ν = input.ν
+
 C10 = E / (4 * (1 + ν))
 D1 = 6.0 * (1.0 - 2.0 * ν) / E
 input.material = make_constitutive_driver(C10, D1)
@@ -136,22 +137,17 @@ sol  = run_fem(input)
 
 # fieldnames(typeof(sol)) ->(:U_steps, :U_effect, :F_effect) 
 U = sol.U_steps[end]
-# Split displacements into x and y components
-ux = U[1:2:end]
-uy = U[2:2:end]
 
-# Print max deformation if desired
-@info "Max ux = $(maximum(ux))"
-@info "Max uy = $(maximum(uy))"
-
-# Print min deformation if desired
-@info "Min ux = $(minimum(ux))"
-@info "Min uy = $(minimum(uy))"
+# Extract final displacement and evaluate at grid nodes
+U = sol.U_steps[end]
+u_nodes = vec(evaluate_at_grid_nodes(input.dh, U, :u))
+ux, uy = getindex.(u_nodes, 1), getindex.(u_nodes, 2)
+@info "Max |ux| = $(maximum(abs, ux)), Max |uy| = $(maximum(abs, uy))"
 
 
 
 GLMakie.closeall()
-fig = Figure(size=(800, 600))
+fig = Figure(size=(800, 600), fontsize=26)
 ax = Axis(fig[1, 1], xlabel="Displacement", ylabel="Force", title="force-displacement", xgridvisible = false, ygridvisible = false)
 
 

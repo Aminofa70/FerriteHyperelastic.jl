@@ -110,20 +110,11 @@ input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 ##################################################################
 ################  solution 
 sol = run_fem(input)
+
+# Extract final displacement and evaluate at grid nodes
 U = sol.U_steps[end]
-# Split displacements into x, y, z components
-ux = U[1:3:end]
-uy = U[2:3:end]
-uz = U[3:3:end]
-
-# Print max deformation
-@info "Max ux = $(maximum(ux))"
-@info "Max uy = $(maximum(uy))"
-@info "Max uz = $(maximum(uz))"
-
-# Print min deformation
-@info "Min ux = $(minimum(ux))"
-@info "Min uy = $(minimum(uy))"
-@info "Min uz = $(minimum(uz))"
+u_nodes = vec(evaluate_at_grid_nodes(input.dh, U, :u))
+ux, uy = getindex.(u_nodes, 1), getindex.(u_nodes, 2)
+@info "Max |ux| = $(maximum(abs, ux)), Max |uy| = $(maximum(abs, uy))"
 
 

@@ -1,6 +1,9 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
+using GLMakie
+using GeometryBasics
+using ColorSchemes
 const Vec = Ferrite.Vec
 
 ##################################################################e
@@ -96,11 +99,10 @@ input.dof_U = []
 input.tol = 1e-6
 
 ## default
-maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
+maxIterPerInc, totalTime, initInc, minInc, maxInc, totalInc = initialize_solver()
 
 # change like the following if you need
 # maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.2,1000)
-
 
 input.maxIterPerInc = maxIterPerInc
 input.totalTime = totalTime
@@ -111,23 +113,77 @@ input.totalInc = totalInc
 ##################################################################
 
 input.filename = "2D_Hyper"
-input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
+input.output_dir = "/Users/aminalibakhshi/Desktop/vtu_geo/"
 ##################################################################
 ################  solution 
 sol = run_fem(input)
 
-U = sol.U_steps[end]
-# Split displacements into x and y components
-ux = U[1:2:end]
-uy = U[2:2:end]
-
-# Print max deformation if desired
-@info "Max ux = $(maximum(ux))"
-@info "Max uy = $(maximum(uy))"
-
-# Print min deformation if desired
-@info "Min ux = $(minimum(ux))"
-@info "Min uy = $(minimum(uy))"
+V, F = FerriteHyperelastic.to_geometry(grid, Ferrite.Quadrilateral)
 
 
+function plot_disp()
+    GLMakie.closeall()
+    fig = Figure(size = (1000, 600))
+    
+    ax = Axis(fig[1, 1], aspect = DataAspect(), xlabel = "X", ylabel = "Y")
+    
+    poly!(ax, GeometryBasics.Mesh(V, F), 
+          color = (:gray, 0.10), strokecolor = :black, strokewidth = 1, shading = false)
+    
+    incRange = length(sol.U_steps) 
+    
+    UT        = fill(V, incRange)                      
+    UT_mag    = fill(zeros(length(V)), incRange)
+    ut_mag_max = zeros(incRange)                       
+    
+    @inbounds for i in 1:incRange
+        U = sol.U_steps[i]
+        u_nodes = vec(evaluate_at_grid_nodes(input.dh, U, :u))  
+        ux = getindex.(u_nodes, 1)
+        uy = getindex.(u_nodes, 2)
+        DD_disp = Vector{Vector{Float64}}()
+        for j in eachindex(ux)
+            push!(DD_disp, [ux[j], uy[j]])
+        end
+        UT[i] = [Point{2,Float64}(u) for u in DD_disp]    
+        UT_mag[i] = norm.(UT[i])                         
+        ut_mag_max[i] = maximum(UT_mag[i])              
+    end
+    
+    
+    scale = 0.0  
+    
+    step_index = Observable(1)
+    Vdef_obs = Observable(V .+ scale .* UT[1])
+    color_obs = Observable(UT_mag[1])
+    colorrange_obs = Observable((0.0, ut_mag_max[1]))
+    
+    
+    mobj = poly!(ax, 
+     lift(Vdef_obs) do verts
+            GeometryBasics.Mesh(verts, F)
+        end,
+        color = color_obs,
+        strokewidth = 2,
+        transparency = false,
+        colormap = Reverse(:Spectral),
+        colorrange = colorrange_obs
+    )
+    
+    Colorbar(fig[1, 2], mobj, label = "Displacement magnitude [mm]")
+    
+    slider = Slider(fig[2, 1], range = 1:incRange, startvalue = 1, width = 800, linewidth=30)
+    step_label = Label(fig[2, 2], "Step: 1")
+    
+    on(slider.value) do i
+        step_index[] = i
+        Vdef_obs[] = V .+ scale .* UT[i]
+        color_obs[] = UT_mag[i]
+        colorrange_obs[] = (0.0, ut_mag_max[i])  
+        step_label.text = "Step: $i"
+    end
+    display(fig) 
+end
+
+plot_disp()
 

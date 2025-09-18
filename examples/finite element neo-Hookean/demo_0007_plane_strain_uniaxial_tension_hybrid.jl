@@ -68,7 +68,7 @@ function make_constitutive_driver(μ, κ)
     return (F, p) -> constitutive_driver(F, p, μ, λ)
 end
 
-input.model_type = :plane_stress   # or :plane_strain; :plane_stress; :threeD
+input.model_type = :plane_strain   # or :plane_strain; :plane_stress; :threeD
 input.load_type = :traction
 
 ν = 0.4999
@@ -77,6 +77,9 @@ input.load_type = :traction
 E = (2 * μ) * (1 + ν)
 λ = (2 * μ * ν) / (1 - 2ν)
 κ = E / (3 * (1 - 2 * ν))    # Bulk modulus
+
+C10 = E / (4 * (1 + ν))
+D1 = 6.0 * (1.0 - 2.0 * ν) / E
 
 input.material = make_constitutive_driver(μ, λ)
 
@@ -92,7 +95,7 @@ input.cell_values_u, input.cell_values_p, input.facet_values = create_values()
 
 input.ΓN = getfacetset(grid, "pressure")
 input.facetsets = [input.ΓN]
-input.traction = [2.2, 0.0]
+input.traction = [20.2, 0.0]
 input.tractions = Dict(1 => input.traction)
 input.tol = 1e-6
 ## default
@@ -144,13 +147,8 @@ end
 println("Total displacement DOFs: ", length(u_global))
 println("Total pressure DOFs: ", length(p_global))
 
-# Split displacements into x and y components
-ux = u_global[1:2:end]
-uy = u_global[2:2:end]
-
-# Print max deformation if desired
-@info "Max ux = $(maximum(ux))"
-@info "Max uy = $(maximum(uy))"
-
-@info "Max P = $(maximum(p_global))"
-@info "Min P = $(minimum(p_global))"
+# Extract final displacement and evaluate at grid nodes
+U_end = u_global
+u_nodes = vec(evaluate_at_grid_nodes(input.dh, U_end, :u))
+ux, uy = getindex.(u_nodes, 1), getindex.(u_nodes, 2)
+@info "Max |ux| = $(maximum(abs, ux)), Max |uy| = $(maximum(abs, uy))"
