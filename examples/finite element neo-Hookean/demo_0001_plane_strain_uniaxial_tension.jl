@@ -1,7 +1,8 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
-using GLMakie 
+using GLMakie
+using GeometryBasics 
 ##################################################################
 # create the structure for saving fem input 
 input = InputStruct()
@@ -155,6 +156,9 @@ ax = Axis(fig[1, 1], xlabel="Displacement", ylabel="Force", title="force-displac
 lines!((sol.U_effect), abs.(sol.F_effect), color = :black)
 scatter!((sol.U_effect), abs.(sol.F_effect), marker = :circle , color = :red)
 display(fig)
+
+
+
 
 
 

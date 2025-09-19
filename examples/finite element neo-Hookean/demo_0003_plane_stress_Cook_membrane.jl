@@ -121,69 +121,66 @@ sol = run_fem(input)
 V, F = FerriteHyperelastic.to_geometry(grid, Ferrite.Quadrilateral)
 
 
-function plot_disp()
-    GLMakie.closeall()
-    fig = Figure(size = (1000, 600))
-    
-    ax = Axis(fig[1, 1], aspect = DataAspect(), xlabel = "X", ylabel = "Y")
-    
-    poly!(ax, GeometryBasics.Mesh(V, F), 
-          color = (:gray, 0.10), strokecolor = :black, strokewidth = 1, shading = false)
-    
-    incRange = length(sol.U_steps) 
-    
-    UT        = fill(V, incRange)                      
-    UT_mag    = fill(zeros(length(V)), incRange)
-    ut_mag_max = zeros(incRange)                       
-    
-    @inbounds for i in 1:incRange
-        U = sol.U_steps[i]
-        u_nodes = vec(evaluate_at_grid_nodes(input.dh, U, :u))  
-        ux = getindex.(u_nodes, 1)
-        uy = getindex.(u_nodes, 2)
-        DD_disp = Vector{Vector{Float64}}()
-        for j in eachindex(ux)
-            push!(DD_disp, [ux[j], uy[j]])
-        end
-        UT[i] = [Point{2,Float64}(u) for u in DD_disp]    
-        UT_mag[i] = norm.(UT[i])                         
-        ut_mag_max[i] = maximum(UT_mag[i])              
+GLMakie.closeall()
+fig = Figure(size=(1000, 600))
+
+ax = Axis(fig[1, 1], aspect=DataAspect(), xlabel="X", ylabel="Y")
+
+poly!(ax, GeometryBasics.Mesh(V, F),
+    color=(:gray, 0.10), strokecolor=:black, strokewidth=1, shading=false)
+
+incRange = length(sol.U_steps)
+
+UT = fill(V, incRange)
+UT_mag = fill(zeros(length(V)), incRange)
+ut_mag_max = zeros(incRange)
+
+@inbounds for i in 1:incRange
+    U = sol.U_steps[i]
+    u_nodes = vec(evaluate_at_grid_nodes(input.dh, U, :u))
+    ux = getindex.(u_nodes, 1)
+    uy = getindex.(u_nodes, 2)
+    DD_disp = Vector{Vector{Float64}}()
+    for j in eachindex(ux)
+        push!(DD_disp, [ux[j], uy[j]])
     end
-    
-    
-    scale = 0.0  
-    
-    step_index = Observable(1)
-    Vdef_obs = Observable(V .+ scale .* UT[1])
-    color_obs = Observable(UT_mag[1])
-    colorrange_obs = Observable((0.0, ut_mag_max[1]))
-    
-    
-    mobj = poly!(ax, 
-     lift(Vdef_obs) do verts
-            GeometryBasics.Mesh(verts, F)
-        end,
-        color = color_obs,
-        strokewidth = 2,
-        transparency = false,
-        colormap = Reverse(:Spectral),
-        colorrange = colorrange_obs
-    )
-    
-    Colorbar(fig[1, 2], mobj, label = "Displacement magnitude [mm]")
-    
-    slider = Slider(fig[2, 1], range = 1:incRange, startvalue = 1, width = 800, linewidth=30)
-    step_label = Label(fig[2, 2], "Step: 1")
-    
-    on(slider.value) do i
-        step_index[] = i
-        Vdef_obs[] = V .+ scale .* UT[i]
-        color_obs[] = UT_mag[i]
-        colorrange_obs[] = (0.0, ut_mag_max[i])  
-        step_label.text = "Step: $i"
-    end
-    display(fig) 
+    UT[i] = [Point{2,Float64}(u) for u in DD_disp]
+    UT_mag[i] = norm.(UT[i])
+    ut_mag_max[i] = maximum(UT_mag[i])
 end
 
-plot_disp()
+
+scale = 0.5
+
+step_index = Observable(1)
+Vdef_obs = Observable(V .+ scale .* UT[1])
+color_obs = Observable(UT_mag[1])
+colorrange_obs = Observable((0.0, ut_mag_max[1]))
+
+
+mobj = poly!(ax,
+    lift(Vdef_obs) do verts
+        GeometryBasics.Mesh(verts, F)
+    end,
+    color=color_obs,
+    strokewidth=2,
+    transparency=false,
+    colormap=Reverse(:Spectral),
+    colorrange=colorrange_obs
+)
+
+Colorbar(fig[1, 2], mobj, label="Displacement magnitude [mm]")
+
+slider = Slider(fig[2, 1], range=1:incRange, startvalue=1, width=800, linewidth=30)
+step_label = Label(fig[2, 2], "Step: 1")
+
+on(slider.value) do i
+    step_index[] = i
+    Vdef_obs[] = V .+ scale .* UT[i]
+    color_obs[] = UT_mag[i]
+    colorrange_obs[] = (0.0, ut_mag_max[i])
+    step_label.text = "Step: $i"
+end
+display(fig)
+
 
