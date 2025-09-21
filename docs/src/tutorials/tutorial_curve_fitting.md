@@ -46,7 +46,7 @@ Set inputs of curve fitting function
 
 !!! warning
     The input MUST be Strain and the Nominal Stress, for this reasion if the data is different 
-    use must convert them to starin and nominal stress
+    user must convert them to starin and nominal stress
 
 ```
 # Input parameters
