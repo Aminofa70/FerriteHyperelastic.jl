@@ -271,7 +271,7 @@ function assemble_traction_forces_threeD_hybrid!(F_ext, dh, facetsets, facetvalu
     return F_ext
 end
 ####################################################################
-function run_fem_hybrid(input::InputStruct)::RunResult
+function run_fem_traction_hybrid(input::InputStruct)::RunResult
     cv_u = input.cell_values_u
     cv_p = input.cell_values_p
     fv = input.facet_values
@@ -416,4 +416,146 @@ function run_fem_hybrid(input::InputStruct)::RunResult
         write_solution(vtk, dh, U)
     end
     return RunResult(U_steps, U_effect, F_effect)
+end
+
+#############################################################################
+#############################################################################
+
+function run_fem_disp_hybrid(input::InputStruct)::RunResult
+    cv_u = input.cell_values_u
+    cv_p = input.cell_values_p
+    dh         = input.dh
+    ch         = input.ch
+    filename   = input.filename
+    output_dir = input.output_dir
+    
+    tol          = input.tol
+    displacement = input.displacement   # total prescribed displacement
+    
+    maxIterPerInc = input.maxIterPerInc
+    totalTime     = input.totalTime
+    initInc       = input.initInc
+    minInc        = input.minInc
+    maxInc        = input.maxInc
+    totalInc      = input.totalInc
+
+    ndofs_dh = ndofs(dh)
+
+    dof_U = input.dof_U
+    dof_F = input.dof_F
+
+    
+    U      = zeros(ndofs_dh)   # total displacement
+    U_prev = zeros(ndofs_dh)
+
+    U_steps = Vector{Vector{Float64}}() 
+    F_effect = Vector{Float64}()   
+    U_effect = Vector{Float64}() 
+
+    conv_flag    = 0
+    deltaT       = initInc
+    tot_time     = 0.0
+    tot_incr     = 1
+    failure_flag = 0
+
+    while tot_time <= totalTime
+        if tot_time == totalTime || deltaT == 0.0
+            println("Analysis ended successfully.")
+            break
+        end
+        if tot_incr > totalInc
+            println("Maximum number of increments reached.")
+            break
+        end
+        if failure_flag == 1
+            break
+        end
+
+        # Adjust last increment to not overshoot
+        if tot_time + deltaT > totalTime
+            deltaT = totalTime - tot_time
+        end
+
+        # Target displacement factor
+        λ = ((tot_time + deltaT) / totalTime) * displacement
+
+        U_prev .= U
+        conv_flag = 0
+
+        # --- Newton loop ---
+        for L = 1:maxIterPerInc
+            K_nl = allocate_matrix(dh)
+            F_int = zeros(ndofs_dh)
+            assemble_global!(K_nl, F_int, cv_u, cv_p, dh, input, U)
+
+            Residual = -F_int
+
+            Ferrite.update!(ch, λ)
+            apply_zero!(K_nl, Residual, ch)
+
+            ΔU = K_nl \ Residual
+            U .+= ΔU
+            apply!(U, ch)
+
+            conv = norm(Residual[Ferrite.free_dofs(ch)]) / (1 + norm(F_int))
+            if conv < tol
+                conv_flag = 1
+                break
+            else
+                conv_flag = 0
+            end
+        end
+        # --- end Newton loop ---
+
+        if conv_flag == 1
+            tot_time = tot_time + deltaT
+
+            H1 = "Converged at increment $tot_incr, Δt = $deltaT, total time = $tot_time"
+            println(H1);
+            if isempty(dof_U) && isempty(dof_F)
+                U_effect = []
+                F_effect = []
+            else
+                U_mean = mean(U[dof_U])
+                F_sum = sum(F_int[dof_F])
+                push!(U_effect, U_mean)
+                push!(F_effect, F_sum)
+            end
+            push!(U_steps, copy(U))
+
+            deltaT = deltaT * (1.25)   # increase step size
+            if deltaT >= maxInc
+                deltaT = maxInc
+            end
+            if deltaT >= (totalTime - tot_time)
+                deltaT = (totalTime - tot_time)
+            end
+
+            tot_incr = tot_incr + 1
+
+        elseif conv_flag == 0
+            deltaT = deltaT / 4   # decrease step size
+            U .= U_prev
+            if deltaT < minInc
+                println("Time integration has failed")
+                failure_flag = 1
+            end
+        end
+    end
+
+    VTKGridFile(joinpath(output_dir, filename), dh) do vtk
+        write_solution(vtk, dh, U)
+    end
+    return RunResult( U_steps, U_effect, F_effect )
+end
+##################################################
+##################################################
+function run_fem_hybrid(input::InputStruct)
+    if input.load_type == :traction
+        run_fem_traction_hybrid(input)
+    elseif input.load_type == :displacement
+        run_fem_disp_hybrid(input)
+    else
+        error("Unknown load_type: $(input.load_type)")
+    end
 end

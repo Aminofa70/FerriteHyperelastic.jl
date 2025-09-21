@@ -26,8 +26,9 @@ P_model = @. 2 * C1 * (λ - λ^-5)
 GLMakie.closeall()
 fig = Figure(size=(800, 600), fontsize=26)
 ax = Axis(fig[1, 1], xlabel= L"\mathscr{ε}", ylabel=L"P",  xgridvisible=false, ygridvisible=false)
-lines!(ax, ϵ, P_model, color = :black, label="Fit, neo-Hookean", linewidth = 3)
 scatter!(ax, strainExp, P_exp, marker=:diamond, color=:red, label="Equibiaxial experiment", markersize = 16)
+lines!(ax, ϵ, P_model, color = :black, label="Fit, neo-Hookean", linewidth = 3)
+
 #############################################################################
 # Read experimental data (uniaxial test)
 λ_exp, P_exp = read_data!(Treloar_1944, equibiaxial)
@@ -118,4 +119,4 @@ lines!(ax, ϵ, P_model, color=:purple, label="Fit, Ogden (3-term)")
 axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray,  linewidth = 3)
 
 display(fig)
-# save("equibiaxial.png", fig) ## for save the plot
+save("equibiaxial.png", fig) ## for save the plot

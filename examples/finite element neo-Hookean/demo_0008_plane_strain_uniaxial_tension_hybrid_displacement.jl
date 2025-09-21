@@ -14,19 +14,20 @@ function create_grid(Lx, Ly, nx, ny)
     return grid
 end
 function create_values()
-    dim, order = 2, 1
-    ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral,order}()^dim
-    qr = Ferrite.QuadratureRule{Ferrite.RefQuadrilateral}(2)
-    qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(2)
-    return Ferrite.CellValues(qr, ip), Ferrite.FacetValues(qr_face, ip)
+    ipu, ipp = Lagrange{RefQuadrilateral,2}()^2, Lagrange{RefQuadrilateral,1}() # P2/P1
+    qr = QuadratureRule{RefQuadrilateral}(3) # Higher quadrature order for stability
+    qr_face = FacetQuadratureRule{RefQuadrilateral}(1)
+    return CellValues(qr, ipu), CellValues(qr, ipp), FacetValues(qr_face, ipu)
 end
 
 function create_dofhandler(grid)
-    dh = Ferrite.DofHandler(grid)
-    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefQuadrilateral,1}()^2)
-    Ferrite.close!(dh)
+    ipu, ipp = Lagrange{RefQuadrilateral,2}()^2, Lagrange{RefQuadrilateral,1}()
+    dh = DofHandler(grid)
+    add!(dh, :u, ipu) # displacement dim = 3
+    add!(dh, :p, ipp) # pressure dim = 1
+    close!(dh)
     return dh
-end
+end;
 
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
@@ -37,34 +38,38 @@ function create_bc(dh)
     return ch
 end
 
+function Ψ(F, p, μ, λ)
+    Ic = tr(tdot(F))
+    J = det(F)
+    Js = (λ + p + sqrt((λ + p)^2.0 + 4.0 * λ * μ)) / (2.0 * λ)
+    return p * (Js - J) + μ / 2 * (Ic - 3) - μ * log(Js) + λ / 2 * (Js - 1)^2
+end;
+# # Define the function to find Js numerically by solving f(Js) = 0
+function constitutive_driver(F, p, μ, λ)
+    # Compute all derivatives in one function call
+    ∂²Ψ∂F², ∂Ψ∂F = Tensors.hessian(y -> Ψ(y, p, μ, λ), F, :all)
+    ∂²Ψ∂p², ∂Ψ∂p = Tensors.hessian(y -> Ψ(F, y, μ, λ), p, :all)
+    ∂²Ψ∂F∂p = Tensors.gradient(q -> Tensors.gradient(y -> Ψ(y, q, μ, λ), F), p)
+    return ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂p, ∂²Ψ∂p², ∂²Ψ∂F∂p
+end;
 
-function Ψ(C, C10, D1)
-    J = sqrt(det(C))
-    I1 = tr(C)
-    I1_bar = I1 * J^(-2 / 3)
-    return C10 * (I1_bar - 3) + (1 / D1) * (J - 1)^2
+function make_constitutive_driver(μ, κ)
+    return (F, p) -> constitutive_driver(F, p, μ, λ)
 end
 
-function constitutive_driver(C, C10, D1)
-    ∂²Ψ∂C², ∂Ψ∂C = Tensors.hessian(y -> Ψ(y, C10, D1), C, :all)
-    S = 2.0 * ∂Ψ∂C
-    ∂S∂C = 2.0 * ∂²Ψ∂C²
-    return S, ∂S∂C
-end
-
-function make_constitutive_driver(C10, D1)
-    return C -> constitutive_driver(C, C10, D1)
-end
-
-input.model_type = :plane_strain   # or :plane_strain or :threeD
+input.model_type = :plane_strain   # or :plane_strain; :plane_stress; :threeD
 input.load_type = :displacement
 
-input.E , input.ν = 4.35, 0.45
-E = input.E
-ν = input.ν
+ν = 0.4999
+μ = 80.1938
+E = (2 * μ) * (1 + ν)
+λ = (2 * μ * ν) / (1 - 2ν)
+κ = E / (3 * (1 - 2 * ν))    # Bulk modulus
+
 C10 = E / (4 * (1 + ν))
 D1 = 6.0 * (1.0 - 2.0 * ν) / E
-input.material = make_constitutive_driver(C10, D1)
+
+input.material = make_constitutive_driver(μ, λ)
 
 # Define parameters for the plate and mesh
 Lx, Ly = 3.17, 1.73  # Plate dimensions
@@ -75,7 +80,7 @@ input.grid = grid
 input.dh = create_dofhandler(grid)
 input.ch = create_bc(input.dh)
 # Create CellValues and FacetValues
-input.cell_values, input.facet_values = create_values()
+input.cell_values_u, input.cell_values_p, input.facet_values = create_values()
 
 ##################################
 
@@ -99,8 +104,7 @@ input.minInc = minInc
 input.maxInc = maxInc
 input.totalInc = totalInc
 
-sol = run_fem(input)
-
+sol = run_fem_hybrid(input)
 # Final displacement vector
 U = sol.U_steps[end]
 

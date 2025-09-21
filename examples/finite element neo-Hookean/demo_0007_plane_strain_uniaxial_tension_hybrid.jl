@@ -72,7 +72,6 @@ input.model_type = :plane_strain   # or :plane_strain; :plane_stress; :threeD
 input.load_type = :traction
 
 ν = 0.4999
-
 μ = 80.1938
 E = (2 * μ) * (1 + ν)
 λ = (2 * μ * ν) / (1 - 2ν)
@@ -95,7 +94,7 @@ input.cell_values_u, input.cell_values_p, input.facet_values = create_values()
 
 input.ΓN = getfacetset(grid, "pressure")
 input.facetsets = [input.ΓN]
-input.traction = [20.2, 0.0]
+input.traction = [20.0, 0.0]
 input.tractions = Dict(1 => input.traction)
 input.tol = 1e-6
 ## default
