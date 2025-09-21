@@ -1,39 +1,150 @@
-# This tutorial is for curve fitting of hyperelastic models 
-## We find the marterial parameters in hyperelastic models
+# This tutorial is for curve fitting in hyperelastic models.
+
+!!! hint 
+    The package supports 
+    * neo-Hookean model
+    * Mooney-Rivlin model
+    * Ogden model
+    * Yeoh models model
+
+!!! note
+    The package also supports *the Drucker stability criterion*.
+    
+In order to perform curve fitting, experimental data are required. 
+Some experimental data are available in [HyperData.jl](https://github.com/Aminofa70/HyperData.jl) repository. 
+
+The experimental data can be *Strain*  or  *Stretch* for ```x ``` axis and the nominal stress for ```y ```axis.
 
 
-For now the package supports neo-Hookean, Mooney-Rivlin, Ogden, and Yeoh models. 
+!!! note "Steps TODO Curve Fitting"
+    * Load Package
+    * Read Experimental Data
+    * Curve Fitting Inputs
+    * Call curve fitting function
+    * Check the accuracy of the obtained material constant(s).
 
-The package also supports stability. Some experimental data are available in [HyperData.jl](https://github.com/Aminofa70/HyperData.jl) repository.  
+### Load Package
 
-The formulation for these models are found at [Abaqus tutorials](https://classes.engineering.wustl.edu/2009/spring/mase5513/abaqus/docs/v6.6/books/stm/default.htm?startat=ch04s06ath123.html) . 
+Load the required packages for curve fitting as
+```
+using Revise          # to automatically reload changed code
+using FerriteHyperelastic
+using GLMakie
+using HyperData
+```
 
-The experimental data can be stain or stretch for ```x ``` axis and the nominal stress for ```y ```axis.
+### Read Experimental Data
 
-Assume that we have experimental data in a matrix named ```data ```. 
-Then we have the following code
+Read the experimental data as
+```
+λ_exp, P_exp = read_data!(Treloar_1944, uniaxial)
+```
+
+### Curve Fitting Inputs
+
+Set inputs of curve fitting function 
+
+!!! warning
+    The input MUST be Strain and the Nominal Stress, for this reasion if the data is different 
+    use must convert them to starin and nominal stress
 
 ```
-inputDataType = "strain"
-data_type     = "biaxial"
-modelType     = "ogden"
-Sexp = data[:, 1]
+# Input parameters
+inputDataType = "lambda"
+data_type = "uniaxial"
+modelType = "neo-hookean"
 
-if inputDataType == "lambda"
-    strainExp = data[:, 2] .- 1
-elseif inputDataType == "strain"
-    strainExp = data[:, 2]
-else
-    error("Unknown inputDataType: $inputDataType")
-end
+Sexp = P_exp
+strainExp = λ_exp .- 1
 
-mat_cons_solver = solver_constants_hyper(data_type, modelType,strainExp, Sexp)
+```
+!!! note 
+    Please use lowercase letter for all model types (this example is "neo-hookean")
+
+### Call curve fitting function
+The curve-fitting function is now called. For neo-Hookean, the material constant is C1.
+```
+# Get material constants by fitting (assumed function)
+mat_cons_solver = solver_constants_hyper(data_type, modelType, strainExp, Sexp)
+C1 = mat_cons_solver[1]
 
 ```
 
-``` inputDataType ``` can be ```"lambda"``` or ```"strain"```.
+### Check the accuracy of the obtained material constant(s)
 
-Also ```  data_type ``` can be biaixla, uniaxial, and pure shear.
+```
+# Generate strain values for smooth curve
+ϵ = collect(LinRange(strainExp[1], strainExp[end], 100))
 
-```modelType``` can be ogden, neo-hookean, yeoh, and mooney-rivlin. It is noted that we use lowercase letter for all.
+# Calculate stretches for incompressible uniaxial tension
+λ1 = @. ϵ + 1
+λ = λ1
+λ2 = @. 1 / sqrt(λ)
+λ3 = λ2   
 
+# neo-Hookean stress (uniaxial nominal stress)
+P_model = @. 2 * C1 * (λ - 1 / λ^2)
+
+# Plot results
+GLMakie.closeall()
+
+fig = Figure(size=(800, 600), fontsize=26)
+ax = Axis(fig[1, 1], xlabel= L"\mathscr{ε}", ylabel=L"P",  xgridvisible=false, ygridvisible=false)
+
+lines!(ax, ϵ, P_model, color = :black, label="Fit, neo-Hookean")
+scatter!(ax, strainExp, P_exp, marker=:circle, color=:red, label="Uniaxial experiment")
+
+axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray)
+display(fig)
+
+
+```
+
+## Plain program
+The version of the code without comments.
+
+```
+using Revise
+using FerriteHyperelastic
+using GLMakie
+using HyperData
+
+
+λ_exp, P_exp = read_data!(Treloar_1944, uniaxial)
+
+
+inputDataType = "lambda"
+data_type = "uniaxial"
+modelType = "neo-hookean"
+
+Sexp = P_exp
+strainExp = λ_exp .- 1
+
+
+mat_cons_solver = solver_constants_hyper(data_type, modelType, strainExp, Sexp)
+C1 = mat_cons_solver[1]
+
+
+ϵ = collect(LinRange(strainExp[1], strainExp[end], 100))
+
+
+λ1 = @. ϵ + 1
+λ = λ1
+λ2 = @. 1 / sqrt(λ)
+λ3 = λ2   
+
+
+P_model = @. 2 * C1 * (λ - 1 / λ^2)
+
+
+GLMakie.closeall()
+
+fig = Figure(size=(800, 600), fontsize=26)
+ax = Axis(fig[1, 1], xlabel= L"\mathscr{ε}", ylabel=L"P",  xgridvisible=false, ygridvisible=false)
+
+lines!(ax, ϵ, P_model, color = :black, label="Fit, neo-Hookean")
+scatter!(ax, strainExp, P_exp, marker=:circle, color=:red, label="Uniaxial experiment")
+
+axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray)
+display(fig)
+```
