@@ -118,46 +118,56 @@ input.output_dir = "/Users/aminalibakhshi/Desktop/vtu_geo/"
 ################  solution 
 sol = run_fem(input)
 
+# Convert grid to geometry
 V, F = FerriteHyperelastic.to_geometry(grid, Ferrite.Quadrilateral)
-
 
 GLMakie.closeall()
 fig = Figure(size=(1000, 600))
-
 ax = Axis(fig[1, 1], aspect=DataAspect(), xlabel="X", ylabel="Y")
 
+# Undeformed mesh (Step 0: gray with black borders)
 poly!(ax, GeometryBasics.Mesh(V, F),
     color=(:gray, 0.10), strokecolor=:black, strokewidth=1, shading=false)
 
+# === Prepare data including Step 0 ===
 incRange = length(sol.U_steps)
+totalSteps = incRange + 1  # Step 0 + displacement steps
 
-UT = fill(V, incRange)
-UT_mag = fill(zeros(length(V)), incRange)
-ut_mag_max = zeros(incRange)
+UT = Vector{Vector{Point{2, Float64}}}(undef, totalSteps)         # Displaced geometry
+UT_mag = Vector{Vector{Float64}}(undef, totalSteps)               # Magnitude per node
+ut_mag_max = zeros(totalSteps)                                    # Max magnitude per step
 
+# Step 0: undeformed configuration
+UT[1] = [Point{2, Float64}([0.0, 0.0]) for _ in V]  # zero displacement
+UT_mag[1] = zeros(length(V))                       # zero magnitude
+ut_mag_max[1] = 0.0
+
+# Steps 1 to incRange: displacement steps
 @inbounds for i in 1:incRange
     U = sol.U_steps[i]
     u_nodes = vec(evaluate_at_grid_nodes(input.dh, U, :u))
     ux = getindex.(u_nodes, 1)
     uy = getindex.(u_nodes, 2)
-    DD_disp = Vector{Vector{Float64}}()
-    for j in eachindex(ux)
-        push!(DD_disp, [ux[j], uy[j]])
-    end
-    UT[i] = [Point{2,Float64}(u) for u in DD_disp]
-    UT_mag[i] = norm.(UT[i])
-    ut_mag_max[i] = maximum(UT_mag[i])
+
+    disp_points = [Point{2, Float64}([ux[j], uy[j]]) for j in eachindex(ux)]
+    UT[i+1] = disp_points
+
+    UT_mag[i+1] = norm.(disp_points)
+    ut_mag_max[i+1] = maximum(UT_mag[i+1])
 end
 
-
-scale = 0.5
+# === Visualization setup ===
+scale = 1.0
 
 step_index = Observable(1)
 Vdef_obs = Observable(V .+ scale .* UT[1])
 color_obs = Observable(UT_mag[1])
-colorrange_obs = Observable((0.0, ut_mag_max[1]))
 
+#  Use global maximum for fixed color scaling
+global_max = maximum(ut_mag_max)
+colorrange_obs = Observable((0.0, global_max))
 
+# Deformed mesh with displacement color
 mobj = poly!(ax,
     lift(Vdef_obs) do verts
         GeometryBasics.Mesh(verts, F)
@@ -169,18 +179,20 @@ mobj = poly!(ax,
     colorrange=colorrange_obs
 )
 
+# Colorbar
 Colorbar(fig[1, 2], mobj, label="Displacement magnitude [mm]")
 
-slider = Slider(fig[2, 1], range=1:incRange, startvalue=1, width=800, linewidth=30)
-step_label = Label(fig[2, 2], "Step: 1")
+# Slider (from Step 0 to last step)
+slider = Slider(fig[2, 1], range=1:totalSteps, startvalue=1, width=800, linewidth=30)
+step_label = Label(fig[2, 2], "Step: 0")
 
+# Slider callback
 on(slider.value) do i
     step_index[] = i
     Vdef_obs[] = V .+ scale .* UT[i]
     color_obs[] = UT_mag[i]
-    colorrange_obs[] = (0.0, ut_mag_max[i])
-    step_label.text = "Step: $i"
+    step_label.text = "Step: $(i - 1)"  # subtract 1 so step 0 is shown as 0
 end
-display(fig)
 
+display(fig)
 
