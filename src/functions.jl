@@ -890,6 +890,9 @@ function run_threeD_disp(input::InputStruct)::RunResult
     filename   = input.filename
     output_dir = input.output_dir
     
+    dof_U = input.dof_U
+    dof_F = input.dof_F
+
     tol          = input.tol
     displacement = input.displacement   # total prescribed displacement
     
