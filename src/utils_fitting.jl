@@ -9,7 +9,7 @@ function calc_mat_constants_hyper_biaxial(modelType::AbstractString,
                                           strainExp::AbstractVector,
                                           Sexp::AbstractVector)
 
-    # detect zero stress and filter
+    # detect zero stresses and filter
     detected_non_zero = Sexp .!= 0
     Sexp      = Sexp[detected_non_zero]
     strainExp = strainExp[detected_non_zero]
@@ -17,7 +17,7 @@ function calc_mat_constants_hyper_biaxial(modelType::AbstractString,
     # weights W = 1 ./ Sexp  (FLOATING division)
     W = 1.0 ./ Sexp
 
-    λ = 1 .+ strainExp
+    λ = 1.0+ strainExp
 
     x = nothing
     if modelType == "neo-hookean"
