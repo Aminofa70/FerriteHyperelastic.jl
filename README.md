@@ -1,5 +1,7 @@
 # FerriteHyperelastic
 
+![Flag Image](assets/logo.png)
+
 A Julia Package for finite element anlysis of hyperelastic materials.
 
 Built on top of https://ferrite-fem.github.io/Ferrite.jl/stable/
