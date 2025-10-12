@@ -1,6 +1,6 @@
 # FerriteHyperelastic
 
-![Flag Image](assets/logo_2.png)
+<img src="assets/logo_2.png" alt="drawing" width="400"/>
 
 A Julia Package for finite element anlysis of hyperelastic materials.
 
