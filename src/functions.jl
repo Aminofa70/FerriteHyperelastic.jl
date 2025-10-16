@@ -365,7 +365,7 @@ function run_plane_stress(input::InputStruct)::RunResult
     failure_flag = 0 
     
     while tot_time <= totalTime
-        if tot_time == totalTime || deltaT == 0.0
+        if tot_time == totalTime || deltaT < 1e-15
             println("Analysis ended successfully.")
             break
         end
@@ -378,7 +378,6 @@ function run_plane_stress(input::InputStruct)::RunResult
         end
         
         n = totalTime / deltaT
-
 
         Incremental_F = zeros(ndofs_dh)
 
@@ -440,7 +439,7 @@ function run_plane_stress(input::InputStruct)::RunResult
             end
     
             if deltaT >= (totalTime - tot_time)
-                deltaT=(totalTime - tot_time);
+                deltaT=0.0;
             end
     
             tot_incr=tot_incr+1;
