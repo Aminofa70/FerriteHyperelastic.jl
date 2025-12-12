@@ -52,15 +52,15 @@ export run_fem
 include("functions.jl")
 ##########################################
 ##########################################
-export Faces, Nodes
-export to_geometry
-export to_boundary
-export get_faces
-export canonical_quad
-export get_boundary_faces
-export tet_faces_as_tuples
-export canonical_tri
-include("utils_plot.jl")
+# export Faces, Nodes
+# export to_geometry
+# export to_boundary
+# export get_faces
+# export canonical_quad
+# export get_boundary_faces
+# export tet_faces_as_tuples
+# export canonical_tri
+# include("utils_plot.jl")
 
 
 ##########################################

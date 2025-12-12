@@ -13,13 +13,14 @@ Please see the examples in [examples](https://github.com/Aminofa70/FerriteHypere
 
 Supports:
 
-> * Plane Stress
 
-> * Plane Strain
+- [x] Plane Stress
 
-> * 3D
+- [x] Plane Strain
 
-> * Curve fitting
+- [x] 3D
+
+- [x] Curve fitting
 
 To install
 

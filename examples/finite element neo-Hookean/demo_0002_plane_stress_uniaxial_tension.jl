@@ -1,6 +1,14 @@
-using Revise
+using Comodo
+using Comodo.GLMakie
+using Comodo.GLMakie.Colors
+using Comodo.GeometryBasics
+
+using ComodoFerrite
+using ComodoFerrite.Ferrite
 using FerriteHyperelastic
-using Ferrite
+## GLMakie setting 
+GLMakie.closeall()
+
 ##################################################################
 
 input = InputStruct()
@@ -78,6 +86,26 @@ input.ch = create_bc(input.dh )
 input.cell_values, input.facet_values = create_values()
 
 ##################################################################
+F, V   = FerriteToComodo(grid, Ferrite.Quadrilateral)
+M = GeometryBasics.Mesh(V, F)
+fig = Figure(size=(800, 600))
+ax = Axis(fig[1, 1], aspect=DataAspect(), xlabel="X", ylabel="Y",title="Mesh with Boundary Conditions",
+xgridvisible = false, ygridvisible = false)
+poly!(ax, M, color=(Gray(0.95), 0.3), strokecolor=:black, strokewidth=1, shading =  true, transparency = false)
+
+facesset = get_boundary_points(grid, getfacetset(grid, "pressure"), Faces, Ferrite.Quadrilateral)
+scatter!(ax, facesset, color=:blue, markersize=15.0, marker=:circle, strokecolor=:black, strokewidth=2, label = "Traction_x_dir")
+
+nodeset = get_boundary_points(grid, getnodeset(grid, "support_1"), Nodes, Ferrite.Quadrilateral)
+scatter!(ax, nodeset, color=:red, markersize=15.0, marker=:circle, strokecolor=:black, strokewidth=2, label = "Fixed_XY")
+
+axislegend(ax, position=:rb, backgroundcolor=(:white, 0.7), framecolor=:gray)
+xlims!(ax, -0.5, 3.5)
+ylims!(ax, -.5, 2)
+display(GLMakie.Screen(), fig)
+
+
+##################################################################
 input.ΓN = getfacetset(grid, "pressure")
 input.facetsets = [input.ΓN]
 input.traction = [0.17, 0.0]
@@ -103,8 +131,8 @@ input.maxInc = maxInc
 input.totalInc = totalInc
 ##################################################################
 
-input.filename = "2D_Hyper"
-input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
+# input.filename = "2D_Hyper"
+# input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
 ##################################################################
 ################  solution 
 sol = run_fem(input)
