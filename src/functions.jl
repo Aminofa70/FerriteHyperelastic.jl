@@ -111,6 +111,38 @@ function assemble_traction_forces_threeD!(F_ext, dh::DofHandler{3},facetsets::Ve
     end
     return F_ext
 end
+# function assemble_traction_forces_threeD!(
+#     f_ext,
+#     dh::DofHandler{3},
+#     facetsets::Vector,
+#     facetvalues::FacetValues,
+#     tractions::Dict{Int, <:AbstractVector}
+# )
+#     fe_ext = zeros(getnbasefunctions(facetvalues))
+
+#     # Loop over facet sets (each with its own traction vector)
+#     for (idx, facetset) in enumerate(facetsets)
+#         t_vec = tractions[idx]  # Vec{3,Float64} traction for this facetset
+
+#         # Iterate over facets in this set
+#         for facet in FacetIterator(dh, facetset)
+#             reinit!(facetvalues, facet)
+#             fill!(fe_ext, 0.0)
+#             for qp in 1:getnquadpoints(facetvalues)
+#                 dΓ = getdetJdV(facetvalues, qp)
+#                 for i in 1:getnbasefunctions(facetvalues)
+#                     Nᵢ = shape_value(facetvalues, qp, i)
+#                     fe_ext[i] += t_vec ⋅ (Nᵢ * dΓ)
+#                 end
+#             end
+
+#             assemble!(f_ext, celldofs(facet), fe_ext)
+#         end
+#     end
+
+#     return f_ext
+# end
+
 ############################################################################################
 ############################################################################################
 """
@@ -231,8 +263,9 @@ function run_plane_strain(input::InputStruct)
     
        
         F_ext = zeros(ndofs_dh)
-        assemble_traction_forces_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit)
         
+        assemble_traction_forces_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit)
+        display(F_ext)
         
         Incremental_F = F_ext
         Total_F .+= Incremental_F

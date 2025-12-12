@@ -1,7 +1,7 @@
 using Revise
 using FerriteHyperelastic
 using Ferrite
-using GLMakie
+#using GLMakie
 using GeometryBasics 
 ##################################################################
 # create the structure for saving fem input 
@@ -86,8 +86,9 @@ input.material = make_constitutive_driver(C10, D1)
 
 # Define parameters for the plate and mesh
 Lx, Ly = 3.17, 1.73  # Plate dimensions
-nx, ny = 10, 10   # Number of elements along x and y
+nx, ny = 2, 2   # Number of elements along x and y
 grid = create_grid(Lx, Ly, nx, ny)  # Generate the grid
+
 
 input.grid = grid
 input.dh = create_dofhandler(grid)
@@ -118,8 +119,9 @@ input.tol = 1e-6
 #maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver()
 
 # change like the following if you need
-maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.8,1000)
+# maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1e-3,1e-15,0.8,1000)
 
+maxIterPerInc,totalTime,initInc,minInc,maxInc,totalInc = initialize_solver(500,1.0,1.,1.,1.,1000)
 
 input.maxIterPerInc = maxIterPerInc
 input.totalTime = totalTime
@@ -130,7 +132,7 @@ input.totalInc = totalInc
 ##################################################################
 
 input.filename = "2D_Hyper"
-input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_geo/"
+input.output_dir= "/Users/aminalibakhshi/Desktop/vtu_results/"
 ##################################################################
 ################  solution 
 
@@ -147,9 +149,9 @@ ux, uy = getindex.(u_nodes, 1), getindex.(u_nodes, 2)
 
 
 
-GLMakie.closeall()
-fig = Figure(size=(800, 600), fontsize=26)
-ax = Axis(fig[1, 1], xlabel="Displacement", ylabel="Force", title="force-displacement", xgridvisible = false, ygridvisible = false)
+# GLMakie.closeall()
+# fig = Figure(size=(800, 600), fontsize=26)
+# ax = Axis(fig[1, 1], xlabel="Displacement", ylabel="Force", title="force-displacement", xgridvisible = false, ygridvisible = false)
 
 
 
