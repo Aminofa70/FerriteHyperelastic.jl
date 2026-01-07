@@ -17,7 +17,7 @@ function calc_mat_constants_hyper_biaxial(modelType::AbstractString,
     # weights W = 1 ./ Sexp  (FLOATING division)
     W = 1.0 ./ Sexp
 
-    λ = 1.0+ strainExp
+    λ = 1.0 .+ strainExp
 
     x = nothing
     if modelType == "neo-hookean"

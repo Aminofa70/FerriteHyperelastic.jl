@@ -119,4 +119,4 @@ lines!(ax, ϵ, P_model, color=:purple, label="Fit, Ogden (3-term)")
 axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray,  linewidth = 3)
 
 display(fig)
-save("equibiaxial.png", fig) ## for save the plot
+#save("equibiaxial.png", fig) ## for save the plot

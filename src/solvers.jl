@@ -1,148 +1,3 @@
-"""
-    assemble_traction_forces_twoD!(F_ext, dh,  facetsets::Vector,  facetvalues,  
-    tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
-
-This function assembles the external force from traction for 2D plane stress and plane strain
-"""
-function assemble_traction_forces_twoD!(F_ext, dh,  facetsets::Vector,  facetvalues, 
-     tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
-
-    fe_ext = zeros(getnbasefunctions(facetvalues))
-    for (idx, facetset) in enumerate(facetsets)
-        t_traction = tractions[idx]
-        for facetidx in facetset  # Iterate over FacetIndex objects in facetset
-            # Get the cell and facet index
-            cellid = facetidx[1]      # Cell ID
-            facet_idx = facetidx[2]   # Local facet index
-            cell = getcells(dh.grid)[cellid]
-            
-            # Get the original coordinates of the cell nodes
-            cell_coords = getcoordinates(dh.grid, cellid)  # Vector{Vec{2, Float64}}, length 4
-            
-            # Update coordinates with displacement
-            updated_coords = copy(cell_coords)
-            cell_dofs = celldofs(dh, cellid)  # e.g., [ux1, uy1, ux2, uy2, ux3, uy3, ux4, uy4]
-            for i in eachindex(cell_coords)# Iterate over nodes (1 to 4)
-                dim = length(cell_coords[1])  # 2 for plane strain
-                current_coords = cell_coords[i]
-                # Get DOFs for the i-th node (x and y displacements)
-                dof_x = cell_dofs[2*i-1]  # x-displacement DOF
-                dof_y = cell_dofs[2*i]    # y-displacement DOF
-                # Create new coordinates
-                new_coords = (current_coords[1] + u[dof_x], current_coords[2] + u[dof_y])
-                updated_coords[i] = Ferrite.Vec{2, Float64}(new_coords)
-            end
-            
-            # Reinitialize FacetValues with updated coordinates
-            reinit!(facetvalues, cell, updated_coords, facet_idx)
-            
-            # Compute traction forces
-            fill!(fe_ext, 0.0)
-            for qp in 1:getnquadpoints(facetvalues)
-                dΓ = getdetJdV(facetvalues, qp)
-                for i in 1:getnbasefunctions(facetvalues)
-                    Nᵢ = shape_value(facetvalues, qp, i)
-                    fe_ext[i] += t_traction ⋅ Nᵢ * dΓ
-                end
-            end
-            assemble!(F_ext, cell_dofs, fe_ext)
-        end
-    end
-    return F_ext
-end
-############################################################################################
-############################################################################################
-"""
-    assemble_traction_forces_threeD!(F_ext, dh::DofHandler{3},facetsets::Vector, 
-    facetvalues::FacetValues, tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
-
-
-This function assembles the external force from traction for 3D
-"""
-function assemble_traction_forces_threeD!(F_ext, dh::DofHandler{3},facetsets::Vector,
-     facetvalues::FacetValues, tractions::Dict{Int, <:AbstractVector}, u::AbstractVector)
-
-    
-    fe_ext = zeros(getnbasefunctions(facetvalues))
-    for (idx, facetset) in enumerate(facetsets)
-        t_traction = tractions[idx]  # Vec{3, Float64} for 3D
-        for facetidx in facetset  # Iterate over FacetIndex objects in facetset
-            # Get the cell and facet index
-            cellid = facetidx[1]      # Cell ID
-            facet_idx = facetidx[2]   # Local facet index
-            cell = getcells(dh.grid)[cellid]
-            
-            # Get the original coordinates of the cell nodes
-            cell_coords = getcoordinates(dh.grid, cellid)  # Vector{Vec{3, Float64}}
-            
-            # Update coordinates with displacement
-            updated_coords = copy(cell_coords)
-            cell_dofs = celldofs(dh, cellid)  # e.g., [ux1, uy1, uz1, ux2, uy2, uz2, ...]
-            for i in eachindex(cell_coords) # Iterate over nodes (e.g., 8 for hexahedron)
-                dim = length(cell_coords[1])  # 3 for 3D
-                current_coords = cell_coords[i]
-                # Get DOFs for the i-th node (x, y, z displacements)
-                dof_x = cell_dofs[3*i-2]  # x-displacement DOF
-                dof_y = cell_dofs[3*i-1]  # y-displacement DOF
-                dof_z = cell_dofs[3*i]    # z-displacement DOF
-                # Create new coordinates
-                new_coords = (
-                    current_coords[1] + u[dof_x],
-                    current_coords[2] + u[dof_y],
-                    current_coords[3] + u[dof_z]
-                )
-                updated_coords[i] = Ferrite.Vec{3, Float64}(new_coords)
-            end
-            
-            # Reinitialize FacetValues with updated coordinates
-            reinit!(facetvalues, cell, updated_coords, facet_idx)
-            
-            # Compute traction forces
-            fill!(fe_ext, 0.0)
-            for qp in 1:getnquadpoints(facetvalues)
-                dΓ = getdetJdV(facetvalues, qp)
-                for i in 1:getnbasefunctions(facetvalues)
-                    Nᵢ = shape_value(facetvalues, qp, i)  # Scalar shape function
-                    fe_ext[i] += t_traction ⋅ Nᵢ * dΓ    # Traction is Vec{3, Float64}
-                end
-            end
-            assemble!(F_ext, cell_dofs, fe_ext)
-        end
-    end
-    return F_ext
-end
-# function assemble_traction_forces_threeD!(
-#     f_ext,
-#     dh::DofHandler{3},
-#     facetsets::Vector,
-#     facetvalues::FacetValues,
-#     tractions::Dict{Int, <:AbstractVector}
-# )
-#     fe_ext = zeros(getnbasefunctions(facetvalues))
-
-#     # Loop over facet sets (each with its own traction vector)
-#     for (idx, facetset) in enumerate(facetsets)
-#         t_vec = tractions[idx]  # Vec{3,Float64} traction for this facetset
-
-#         # Iterate over facets in this set
-#         for facet in FacetIterator(dh, facetset)
-#             reinit!(facetvalues, facet)
-#             fill!(fe_ext, 0.0)
-#             for qp in 1:getnquadpoints(facetvalues)
-#                 dΓ = getdetJdV(facetvalues, qp)
-#                 for i in 1:getnbasefunctions(facetvalues)
-#                     Nᵢ = shape_value(facetvalues, qp, i)
-#                     fe_ext[i] += t_vec ⋅ (Nᵢ * dΓ)
-#                 end
-#             end
-
-#             assemble!(f_ext, celldofs(facet), fe_ext)
-#         end
-#     end
-
-#     return f_ext
-# end
-
 ############################################################################################
 ############################################################################################
 """
@@ -264,8 +119,9 @@ function run_plane_strain(input::InputStruct)
        
         F_ext = zeros(ndofs_dh)
         
-        assemble_traction_forces_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit)
-        display(F_ext)
+        #assemble_traction_forces_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit)
+        assemble_traction_forces_plane_strain_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit)
+
         
         Incremental_F = F_ext
         Total_F .+= Incremental_F
@@ -282,6 +138,8 @@ function run_plane_strain(input::InputStruct)
             apply!(K_nonlinear, Residual, ch)
 
             deltaU = K_nonlinear \ Residual
+
+            apply_zero!(deltaU, ch)
             
             Uinit .+= deltaU
             conv = norm(Residual) / (1 + norm(Total_F))
@@ -418,7 +276,7 @@ function run_plane_stress(input::InputStruct)::RunResult
         # distribute traction incrementally
         traction_load = Dict{Int, Vector}(k => v ./ n for (k, v) in traction)
         F_ext = zeros(ndofs_dh)
-        assemble_traction_forces_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit)
+        assemble_traction_forces_plane_stress_twoD!(F_ext, dh, ΓN, fv, traction_load, Uinit, input)
         
         Incremental_F = F_ext
         Total_F .+= Incremental_F
@@ -437,7 +295,8 @@ function run_plane_stress(input::InputStruct)::RunResult
             apply!(K_nonlinear, Residual, ch)
 
             deltaU = K_nonlinear \ Residual
-            
+            apply_zero!(deltaU, ch)
+
             Uinit .+= deltaU
             conv = norm(Residual) / (1 + norm(Total_F))
             if conv < tol
@@ -584,6 +443,8 @@ function run_threeD(input::InputStruct)::RunResult
 
             deltaU = K_nonlinear \ Residual
             
+            apply_zero!(deltaU, ch)
+
             Uinit .+= deltaU
             conv = norm(Residual) / (1 + norm(Total_F))
             if conv < tol
@@ -720,8 +581,9 @@ function run_plane_strain_disp(input::InputStruct)::RunResult
             apply_zero!(K_nl, Residual, ch)
 
             ΔU = K_nl \ Residual
+            apply_zero!(ΔU, ch)
             U .+= ΔU
-            apply!(U, ch)
+            #apply!(U, ch)
 
             conv = norm(Residual[Ferrite.free_dofs(ch)]) / (1 + norm(F_int))
             if conv < tol
@@ -853,8 +715,9 @@ function run_plane_stress_disp(input::InputStruct)::RunResult
             apply_zero!(K_nl, Residual, ch)
 
             ΔU = K_nl \ Residual
+            apply_zero!(ΔU, ch)
             U .+= ΔU
-            apply!(U, ch)
+            #apply!(U, ch)
 
             conv = norm(Residual[Ferrite.free_dofs(ch)]) / (1 + norm(F_int))
             if conv < tol
@@ -986,8 +849,9 @@ function run_threeD_disp(input::InputStruct)::RunResult
             apply_zero!(K_nl, Residual, ch)
 
             ΔU = K_nl \ Residual
+            apply_zero!(ΔU, ch)
             U .+= ΔU
-            apply!(U, ch)
+            #apply!(U, ch)
 
             conv = norm(Residual[Ferrite.free_dofs(ch)]) / (1 + norm(F_int))
             if conv < tol
