@@ -292,9 +292,5 @@ on(hSlider.value) do stepIndex
 end
 
 slidercontrol(hSlider, ax3)
-#display(GLMakie.Screen(), fig_disp)
+display(GLMakie.Screen(), fig_disp)
 
-# frames = vcat(incRange, reverse(incRange[2:end-1]))
-# record(fig_disp, "deformation_pingpong.mp4", frames; framerate = 5) do stepIndex
-#     hSlider.value[] = stepIndex
-# end

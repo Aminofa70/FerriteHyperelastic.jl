@@ -17,7 +17,7 @@ This project uses the following Julia packages:
 
 Please see the examples in [examples](https://github.com/Aminofa70/FerriteHyperelastic.jl/tree/main/examples)
 
-<img src="https://github.com/Aminofa70/FerriteHyperelastic.jl/blob/main/assets/anim/torsion_new.gif" alt="ComodoFerrite torsion loading of a cube" width="50%"/>
+<img src="https://github.com/Aminofa70/FerriteHyperelastic.jl/blob/main/assets/anim/torsion.gif" alt="ComodoFerrite torsion loading of a cube" width="60%"/>
 
 Supports:
 
