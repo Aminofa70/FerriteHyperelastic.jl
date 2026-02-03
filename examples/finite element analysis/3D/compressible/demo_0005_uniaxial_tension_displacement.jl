@@ -25,8 +25,18 @@ boxDim = [5.0, 20.0, 60.0] # Dimensionsions for the box in each direction
 boxEl = ceil.(Int64,boxDim./pointSpacing) # Number of elements to use in each direction 
 E,V,F,Fb,Cb = hexbox(boxDim,boxEl)
 
-grid = ComodoToFerrite(E, V, Ferrite.Hexahedron; Fb, Cb)
+grid = ComodoToFerrite(E, V)
+Fb_bottom = Fb[Cb.==1]
+addface!(grid , "bottom", Fb_bottom) 
 
+Fb_front = Fb[Cb.==3]  
+addface!(grid , "front", Fb_front) 
+
+Fb_top = Fb[Cb.==2] 
+addface!(grid , "top", Fb_top)   
+
+Fb_left = Fb[Cb.==6]
+addface!(grid , "left", Fb_left)   
 
 # Defining displacement of the top surface in terms of x, y, and z components
 if loadingOption=="tension"

@@ -270,8 +270,7 @@ end
 
 nx, ny = 10,10
 grid = create_cook_grid(nx, ny)
-F, V   = FerriteToComodo(grid, Ferrite.Quadrilateral)
-
+F, V   = FerriteToComodo(grid)
 
 E = 10.0
 ν = 0.3

@@ -229,7 +229,7 @@ end
 Lx, Ly, Lz = 10.0, 10.0, 10.0
 nx, ny, nz = 5, 5, 5
 grid = create_grid(Lx, Ly, Lz, nx, ny, nz)
-E, V, F, Fb, Cb = FerriteToComodo(grid, Ferrite.Tetrahedron)
+E, V, F, Fb, Cb = FerriteToComodo(grid)
 
 interpolation_u = Lagrange{RefTetrahedron,2}()^3
 interpolation_p = Lagrange{RefTetrahedron,1}()

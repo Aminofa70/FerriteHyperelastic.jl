@@ -15,8 +15,19 @@ GLMakie.closeall()
 boxDim = [10, 10, 10]
 boxEl = [5, 5, 5]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
-grid = ComodoToFerrite(E, V, Ferrite.Hexahedron; Fb, Cb)
+grid = ComodoToFerrite(E, V)
 
+Fb_bottom = Fb[Cb.==1]
+addface!(grid , "bottom", Fb_bottom) 
+
+Fb_front = Fb[Cb.==3]  
+addface!(grid , "front", Fb_front) 
+
+Fb_top = Fb[Cb.==2] 
+addface!(grid , "top", Fb_top)   
+
+Fb_left = Fb[Cb.==6]
+addface!(grid , "left", Fb_left)   
 
 
 ## Finite Elemenet Values

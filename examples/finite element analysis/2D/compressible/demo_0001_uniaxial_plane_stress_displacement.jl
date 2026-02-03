@@ -261,7 +261,7 @@ end
 Lx, Ly = 1, 1
 nx, ny = 10,10
 grid = create_grid(Lx, Ly, nx, ny)
-F, V   = FerriteToComodo(grid, Ferrite.Quadrilateral)
+F, V   = FerriteToComodo(grid)
 
 
 E = 10.0

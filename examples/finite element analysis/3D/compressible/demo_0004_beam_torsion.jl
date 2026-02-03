@@ -244,7 +244,7 @@ Lx, Ly, Lz = 10.0, 40.0, 10.0
 nx, ny, nz = 5, 10, 5
 grid = create_grid(Lx, Ly, Lz, nx, ny, nz)
 
-E, V, F, Fb, Cb = FerriteToComodo(grid, Ferrite.Hexahedron)
+E, V, F, Fb, Cb = FerriteToComodo(grid)
 
 
 E = 10.0
