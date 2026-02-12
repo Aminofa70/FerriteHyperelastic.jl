@@ -42,12 +42,8 @@ makedocs(
         "Install" => "install.md",
         "Functions" => "functions.md",
         "Tutorials" => [
-            "tutorial fem" => "tutorials/tutorial_fem.md",
             "tutorial curve fitting" => "tutorials/tutorial_curve_fitting.md",
-        ],
-        "Examples" => [
-            "plane strain uniaxial tension" => "examples/plane_strain_tension.md",
-        ],
+        ]
     ],
 )
 
