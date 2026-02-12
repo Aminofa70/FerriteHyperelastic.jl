@@ -3,7 +3,6 @@ using ComodoFerrite.Comodo
 using ComodoFerrite.Ferrite
 using ComodoFerrite.Comodo.GeometryBasics
 using ForwardDiff, IterativeSolvers, Roots
-using IterativeSolvers,Roots
 using ComodoFerrite.Comodo.GLMakie
 
 const Vec = Ferrite.Vec
@@ -246,7 +245,8 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
             apply_zero!(K, g, dbcs)
 
             fill!(ΔΔu, 0.0)
-            IterativeSolvers.cg!(ΔΔu, K, g; maxiter = 1000)
+            ΔΔu = K \ g
+
             apply_zero!(ΔΔu, dbcs)
 
             Δu .-= ΔΔu

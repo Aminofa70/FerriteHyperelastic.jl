@@ -3,7 +3,6 @@ using Comodo.GLMakie
 using Comodo.GLMakie.Colors
 using Comodo.GeometryBasics
 using Comodo.Statistics
-using IterativeSolvers
 using ComodoFerrite
 using ComodoFerrite.Ferrite
 using BlockArrays
@@ -199,7 +198,7 @@ function solve(E, ν, grid, displacement_prescribed, numSteps, interpolation_u, 
             apply_zero!(K, f, dbcs)
 
             fill!(ΔΔu, 0.0)
-            IterativeSolvers.cg!(ΔΔu, K, f; maxiter=1000)
+            ΔΔu = K \ f
             apply_zero!(ΔΔu, dbcs)
 
             Δu .-= ΔΔu

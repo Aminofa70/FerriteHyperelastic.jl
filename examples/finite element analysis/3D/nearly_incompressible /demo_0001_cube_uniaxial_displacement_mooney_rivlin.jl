@@ -110,8 +110,7 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvJ̄, mp, ue, pe, J̄e)
         p̂  = function_value(cvp, qp, pe)
         J̄  = function_value(cvJ̄, qp, J̄e)
 
-        ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂J̄, ∂²Ψ∂J̄² =
-            constitutive_driver(F, J̄, p̂, mp)
+        ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂J̄, ∂²Ψ∂J̄² = constitutive_driver(F, J̄, p̂, mp)
 
         Finv = inv(F)
         J    = det(F)                              
