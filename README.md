@@ -30,6 +30,22 @@ Supports:
 
 - [x] Curve fitting
 
+The package covers the following deformation
+
+- [x] Compressible
+- [x] Nearly-incompressible
+- [x] Fully-incompressible
+
+Thanks to [FESolvers.jl](https://github.com/KnutAM/FESolvers.jl), in the package, the following options are available:
+
+- [x] Standard Newton-Raphson solver
+- [x] Quasi-Newton solver
+- [x] Adaptive newton solver
+- [x] Descent solver
+- [x] FixedTimeStepper
+- [x] AdaptiveTimeStepper
+
+
 To install
 
 ```
