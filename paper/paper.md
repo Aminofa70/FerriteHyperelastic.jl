@@ -54,5 +54,7 @@ The package is written in the Julia language and contains different folders. The
 
 # AI usage disclosure
 
+Amin Alibakhshi has utilized ChatGPT 5.2 and Claude Opus 4.6 for code debugging and improving the Julia syntax of some parts of the code.
 
+After using these tools, he carefully reviewed and edited them to ensure accuracy and take full responsibility for the content of the published article.
 # References
