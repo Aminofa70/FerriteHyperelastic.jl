@@ -45,6 +45,13 @@ Thanks to [FESolvers.jl](https://github.com/KnutAM/FESolvers.jl), in the package
 - [x] FixedTimeStepper
 - [x] AdaptiveTimeStepper
 
+Boundary condition types:
+- [x] Prescribed displacements
+- [x] Nodal forces
+- [x] Surface tractions
+- [x] Pressure forces
+- [x] Body forces
+
 
 To install
 
