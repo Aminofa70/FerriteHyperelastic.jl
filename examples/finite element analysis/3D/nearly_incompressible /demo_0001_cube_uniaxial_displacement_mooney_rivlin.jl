@@ -8,133 +8,157 @@ using ComodoFerrite
 using ComodoFerrite.Ferrite
 using SparseArrays
 using BlockArrays
-## Mesh 
+
 boxDim = [10, 10, 10]
-boxEl = [5, 5, 5]
+boxEl  = [5, 5, 5]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
+
+c1_mod = 10.0
+c2_mod = 20.0
+ν = 0.4999
+μ = 2 * (c1_mod + c2_mod)
+K_mod = 2 * μ * (1 + ν) / (3 * (1 - 2 * ν))
+
+displacement_prescribed = 1.0
+numSteps = 10
+
 grid = ComodoToFerrite(E, V)
 
-Fb_bottom = Fb[Cb.==1]
-addface!(grid , "bottom", Fb_bottom) 
+Fb_bottom = Fb[Cb .== 1]
+addface!(grid, "bottom", Fb_bottom)
 
-Fb_front = Fb[Cb.==3]  
-addface!(grid , "front", Fb_front) 
+Fb_front = Fb[Cb .== 3]
+addface!(grid, "front", Fb_front)
 
-Fb_top = Fb[Cb.==2] 
-addface!(grid , "top", Fb_top)   
+Fb_top = Fb[Cb .== 2]
+addface!(grid, "top", Fb_top)
 
-Fb_left = Fb[Cb.==6]
-addface!(grid , "left", Fb_left)   
+Fb_left = Fb[Cb .== 6]
+addface!(grid, "left", Fb_left)
 
 
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0], [3]) # bcSupportList_Z
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "front"), (x, t) -> [0.0], [2]) # bcSupportList_Y
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "left"), (x, t) -> [0.0], [1]) # bcSupportList_X
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "top"), (x, t) -> [t], [3]) # bcPrescribeList_Z
-    add!(ch, dbc)
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0], [3]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "front"),  (x, t) -> [0.0], [2]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "left"),   (x, t) -> [0.0], [1]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "top"),    (x, t) -> [t],   [3]))
     Ferrite.close!(ch)
-    t = 0.0
-    Ferrite.update!(ch, t)
+    Ferrite.update!(ch, 0.0)
     return ch
 end
-
 
 struct MooneyRivlin
     c1::Float64
     c2::Float64
-    K::Float64
+    K::Float64      # bulk modulus
 end
 
-function Ψ(F, J̄, p, mp::MooneyRivlin)
+
+function Ψ(F_arg, Θ, p_field, mp::MooneyRivlin)
     c1, c2, K = mp.c1, mp.c2, mp.K
+    J = det(F_arg)
+    F̃ = J^(-1/3) * F_arg
+    C̃ = tdot(F̃)                   # C̃ = F̃ᵀ F̃
 
-    J  = det(F)
-    # Isochoric deformation gradient
-    F̄  = J^(-1/3) * F
-    # Isochoric right Cauchy-Green: C̄ = F̄ᵀF̄
-    C̄  = tdot(F̄)
+    Ī₁ = tr(C̃)
+    Ī₂ = 0.5 * (Ī₁^2 - tr(C̃ ⋅ C̃))
 
-    # Invariants of C̄
-    I1c̄ = tr(C̄)
-    I2c̄ = 0.5 * (I1c̄^2 - tr(C̄ ⋅ C̄))
+    # --- Deviatoric part ---
+    Ψdev = c1 * (Ī₁ - 3.0) + c2 * (Ī₂ - 3.0)
 
-    # Three-field Simo–Taylor–Pister functional:
-    #   Π = Ψ_dev(F̄) + Ψ_vol(J̄) + p*(J - J̄)
-    Ψdev = c1 * (I1c̄ - 3) + c2 * (I2c̄ - 3)
-    Ψvol = 0.5 * K * (log(J̄))^2
-    Ψcoup = p * (J - J̄)
+    # --- Volumetric part: U(Θ) = ½ K (ln Θ)² ---
+    Ψvol = 0.5 * K * (log(Θ))^2
+
+    # --- Three-field coupling: p(J − Θ)
+    Ψcoup = p_field * (J - Θ)
 
     return Ψdev + Ψvol + Ψcoup
 end
 
 
-# ──────────────────────────────────────────────────────────────
-# Constitutive driver
-# ──────────────────────────────────────────────────────────────
-function constitutive_driver(F, J̄, p, mp::MooneyRivlin)
+function constitutive_driver(F_arg, Θ, p_field, mp::MooneyRivlin)
 
-    ∂²Ψ∂F², ∂Ψ∂F = Tensors.hessian(y -> Ψ(y, J̄, p, mp), F, :all)
+    # Derivatives w.r.t. F via automatic differentiation
+    ∂²Ψ∂F², ∂Ψ∂F = Tensors.hessian(
+        y -> Ψ(y, Θ, p_field, mp), F_arg, :all
+    )
 
-    ∂²Ψ∂J̄², ∂Ψ∂J̄ = Tensors.hessian(y -> Ψ(F, y, p, mp), J̄, :all)
+    # Derivatives w.r.t. Θ — analytical
+    #   U(Θ)  = ½ K (ln Θ)²
+    #   U'(Θ) = K ln(Θ) / Θ
+    #   U''(Θ) = K (1 − ln Θ) / Θ²
+    K = mp.K
+    lnΘ = log(Θ)
+    ∂Ψ∂Θ   = K * lnΘ / Θ - p_field
+    ∂²Ψ∂Θ² = K * (1.0 - lnΘ) / (Θ^2)
 
-    return ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂J̄, ∂²Ψ∂J̄²
+    return ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂Θ, ∂²Ψ∂Θ²
 end
 
-# ──────────────────────────────────────────────────────────────
-# Element assembly  (u, p, J̄  three-field Hu–Washizu / STP)
-# ──────────────────────────────────────────────────────────────
-function assemble_element!(Ke, fe, cell, cvu, cvp, cvJ̄, mp, ue, pe, J̄e)
+
+## println(repeat("═", 60))
+# ══════════════════════════════════════════════════════════════
+# 6. ELEMENT ASSEMBLY
+#
+#  Three-field: (u, p, Θ)
+#
+#  Block 1 — u (equilibrium):        
+#  Block 2 — p (constraint J = Θ):   
+#  Block 3 — Θ (volumetric):         
+#
+#  
+# ══════════════════════════════════════════════════════════════
+
+function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
+                           mp, ue, pe, Θe)
 
     reinit!(cvu, cell)
     reinit!(cvp, cell)
-    reinit!(cvJ̄, cell)
+    reinit!(cvΘ, cell)
 
     fill!(Ke, 0.0)
     fill!(fe, 0.0)
 
     nu = getnbasefunctions(cvu)
     np = getnbasefunctions(cvp)
-    nJ̄ = getnbasefunctions(cvJ̄)
+    nΘ = getnbasefunctions(cvΘ)
 
     for qp in 1:getnquadpoints(cvu)
         dΩ = getdetJdV(cvu, qp)
 
-        # Current state at quadrature point
-        ∇u = function_gradient(cvu, qp, ue)
-        F  = one(∇u) + ∇u
-        p̂  = function_value(cvp, qp, pe)
-        J̄  = function_value(cvJ̄, qp, J̄e)
+        # --- Current state at quadrature point ---
+        ∇u   = function_gradient(cvu, qp, ue)
+        F_qp = one(∇u) + ∇u
+        p̂    = function_value(cvp, qp, pe)
+        Θ̂    = function_value(cvΘ, qp, Θe)
 
-        ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂J̄, ∂²Ψ∂J̄² = constitutive_driver(F, J̄, p̂, mp)
+        # --- Constitutive evaluation ---
+        ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂Θ, ∂²Ψ∂Θ² =
+            constitutive_driver(F_qp, Θ̂, p̂, mp)
 
-        Finv = inv(F)
-        J    = det(F)                              
-
-        # ============================================================
-        # Block 1 — u-equation  (equilibrium)
-        #   Rᵤ[i] = ∫ ∇Nᵢ : P  dV ,   P = ∂Ψ/∂F
-        # ============================================================
+        Finv = inv(F_qp)
+        J    = det(F_qp)
+        # ════════════════════════════════════════════════════
+        # Block 1 — u-equation (equilibrium)
+        #   Rᵤ[i] = ∫ ∇Nᵢ : P dV,  P = ∂Ψ/∂F
+        # ════════════════════════════════════════════════════
         for i in 1:nu
             ∇Nᵢ = shape_gradient(cvu, qp, i)
 
-            # --- residual ---
-            fe[BlockIndex((1),(i))] += (∇Nᵢ ⊡ ∂Ψ∂F) * dΩ
+            # Residual
+            fe[BlockIndex((1,),(i,))] += (∇Nᵢ ⊡ ∂Ψ∂F) * dΩ
 
-            # --- Kuu ---
+            # Kuu — material + geometric stiffness
             for j in 1:nu
                 ∇Nⱼ = shape_gradient(cvu, qp, j)
                 Ke[BlockIndex((1,1),(i,j))] += (∇Nᵢ ⊡ ∂²Ψ∂F² ⊡ ∇Nⱼ) * dΩ
             end
 
-            # δJ_i = J F⁻ᵀ : ∇Nᵢ  (variation of det(F), NOT a J̄ shape fn)
+            # δJ_i = J F⁻ᵀ : ∇Nᵢ  (variation of det F)
             δJ_i = J * tr(Finv ⋅ ∇Nᵢ)
 
-            # --- Kup  &  Kpu  (symmetric coupling) ---
+            # Kup & Kpu — symmetric coupling
             for j in 1:np
                 Nⱼᵖ = shape_value(cvp, qp, j)
                 Ke[BlockIndex((1,2),(i,j))] += δJ_i * Nⱼᵖ * dΩ
@@ -142,154 +166,155 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvJ̄, mp, ue, pe, J̄e)
             end
         end
 
-        # ============================================================
-        # Block 2 — p-equation  (incompressibility constraint)
-        #   Rₚ[i] = ∫ Nᵢᵖ (J − J̄)  dV
-        # ============================================================
+        # ════════════════════════════════════════════════════
+        # Block 2 — p-equation (constraint J = Θ)
+        #   Rₚ[i] = ∫ Nᵢᵖ (J − Θ) dV
+        # ════════════════════════════════════════════════════
         for i in 1:np
             Nᵢᵖ = shape_value(cvp, qp, i)
 
-            fe[BlockIndex((2),(i))] += Nᵢᵖ * (J - J̄) * dΩ
+            # Residual
+            fe[BlockIndex((2,),(i,))] += Nᵢᵖ * (J - Θ̂) * dΩ
 
-            # --- KpJ̄ ---
-            for j in 1:nJ̄
-                NⱼJ̄ = shape_value(cvJ̄, qp, j)
-                Ke[BlockIndex((2,3),(i,j))] -= Nᵢᵖ * NⱼJ̄ * dΩ
+            # KpΘ — off-diagonal coupling
+            for j in 1:nΘ
+                NⱼΘ = shape_value(cvΘ, qp, j)
+                Ke[BlockIndex((2,3),(i,j))] -= Nᵢᵖ * NⱼΘ * dΩ
             end
         end
 
-        # ============================================================
-        # Block 3 — J̄-equation  (volumetric constitutive)
-        #   RJ̄[i] = ∫ NᵢJ̄ (∂Ψ_vol/∂J̄ − p)  dV
-        # ============================================================
-        for i in 1:nJ̄
-            NᵢJ̄ = shape_value(cvJ̄, qp, i)
+        # ════════════════════════════════════════════════════
+        # Block 3 — Θ-equation (volumetric constitutive)
+        #   RΘ[i] = ∫ NᵢΘ (U'(Θ) − p) dV
+        #   KΘΘ uses U''(Θ) = K(1 − ln Θ)/Θ²
+        # ════════════════════════════════════════════════════
+        # 
+        for i in 1:nΘ
+            NᵢΘ = shape_value(cvΘ, qp, i)
 
-            fe[BlockIndex((3),(i))] += NᵢJ̄ * (∂Ψ∂J̄ - p̂) * dΩ
+            # Residual
+            fe[BlockIndex((3,),(i,))] += NᵢΘ * ∂Ψ∂Θ * dΩ
 
-            # --- KJ̄J̄ ---
-            for j in 1:nJ̄
-                NⱼJ̄ = shape_value(cvJ̄, qp, j)
-                Ke[BlockIndex((3,3),(i,j))] +=
-                    NᵢJ̄ * ∂²Ψ∂J̄² * NⱼJ̄ * dΩ
+            # KΘΘ — volumetric tangent
+            for j in 1:nΘ
+                NⱼΘ = shape_value(cvΘ, qp, j)
+                Ke[BlockIndex((3,3),(i,j))] += NᵢΘ * ∂²Ψ∂Θ² * NⱼΘ * dΩ
             end
 
-            # --- KJ̄p  (= KpJ̄ᵀ) ---
+            # KΘp — (= KpΘᵀ)
             for j in 1:np
                 Nⱼᵖ = shape_value(cvp, qp, j)
-                Ke[BlockIndex((3,2),(i,j))] -= NᵢJ̄ * Nⱼᵖ * dΩ
+                Ke[BlockIndex((3,2),(i,j))] -= NᵢΘ * Nⱼᵖ * dΩ
             end
         end
     end
 end
 
-function assemble_global!(
-        K::SparseMatrixCSC, f,
-        cvu::CellValues, cvp::CellValues, cvJ̄::CellValues,
-        dh::DofHandler, mp::MooneyRivlin, w
-    )
+
+# ══════════════════════════════════════════════════════════════
+# 7. GLOBAL ASSEMBLY
+# ══════════════════════════════════════════════════════════════
+
+function assemble_global!(K::SparseMatrixCSC, f,
+                          cvu, cvp, cvΘ,
+                          dh, mp, w)
 
     nu = getnbasefunctions(cvu)
     np = getnbasefunctions(cvp)
-    nJ̄ = getnbasefunctions(cvJ̄)
-    ntot = nu + np + nJ̄
+    nΘ = getnbasefunctions(cvΘ)
+    ntot = nu + np + nΘ
 
-    # Local blocked arrays: 3 blocks [u, p, J̄]
-    fe = BlockedArray(zeros(ntot), [nu, np, nJ̄])
-    ke = BlockedArray(zeros(ntot, ntot), [nu, np, nJ̄], [nu, np, nJ̄])
+    fe = BlockedArray(zeros(ntot), [nu, np, nΘ])
+    ke = BlockedArray(zeros(ntot, ntot), [nu, np, nΘ], [nu, np, nΘ])
 
     assembler = start_assemble(K, f)
 
     for cell in CellIterator(dh)
         global_dofs = celldofs(cell)
 
-        # Extract DOF ranges for each field
         global_dofs_u = global_dofs[1:nu]
-        global_dofs_p = global_dofs[(nu + 1):(nu + np)]
-        global_dofs_J̄ = global_dofs[(nu + np + 1):end]
+        global_dofs_p = global_dofs[(nu+1):(nu+np)]
+        global_dofs_Θ = global_dofs[(nu+np+1):end]
 
-        @assert length(global_dofs) == ntot  # sanity check
+        @assert length(global_dofs) == ntot
 
-        # Extract element DOF values from global solution
-        ue  = w[global_dofs_u]
-        pe  = w[global_dofs_p]
-        J̄e  = w[global_dofs_J̄]
+        ue = w[global_dofs_u]
+        pe = w[global_dofs_p]
+        Θe = w[global_dofs_Θ]
 
-        assemble_element!(ke, fe, cell, cvu, cvp, cvJ̄, mp, ue, pe, J̄e)
+        assemble_element!(ke, fe, cell, cvu, cvp, cvΘ,
+                          mp, ue, pe, Θe)
+
         assemble!(assembler, global_dofs, ke, fe)
     end
     return
 end
- 
 
-function create_values(ipu, ipp, ipJ̄)
+
+# ══════════════════════════════════════════════════════════════
+# 8. FE SETUP HELPERS
+# ══════════════════════════════════════════════════════════════
+
+function create_values(ipu, ipp, ipΘ)
     qr  = QuadratureRule{RefHexahedron}(2)
     cvu = CellValues(qr, ipu)
     cvp = CellValues(qr, ipp)
-    cvJ̄ = CellValues(qr, ipJ̄)
-    return cvu, cvp, cvJ̄
+    cvΘ = CellValues(qr, ipΘ)
+    return cvu, cvp, cvΘ
 end
 
-function create_dofhandler(grid, ipu, ipp, ipJ̄)
+function create_dofhandler(grid, ipu, ipp, ipΘ)
     dh = DofHandler(grid)
     add!(dh, :u, ipu)
     add!(dh, :p, ipp)
-    add!(dh, :J̄, ipJ̄)             
+    add!(dh, :Θ, ipΘ)
     close!(dh)
     return dh
 end
 
-function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps)
-                    
+#Standard Newton iteration for the three-field principle.
+
+function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps;
+               NEWTON_TOL = 1e-8, NEWTON_MAXITER = 100)
 
     # --- Material ---
-    mp = MooneyRivlin(c1, c2, bulk)                
+    mp = MooneyRivlin(c1, c2, bulk)
 
-    # --- Interpolations ---
-    # ipu = Lagrange{RefHexahedron, 2}()^3           
-    # ipp = Lagrange{RefHexahedron, 1}()              
-    # ipJ̄ = Lagrange{RefHexahedron, 1}()
+    # --- Interpolations: Q1/P0/P0 ---
+    ipu = Lagrange{RefHexahedron,1}()^3
+    ipp = DiscontinuousLagrange{RefHexahedron,0}()
+    ipΘ = DiscontinuousLagrange{RefHexahedron,0}()
 
-
-    # Q1/P0/P0 — matches FEBio's hex8 three-field formulation
-    ipu = Lagrange{RefHexahedron,1}()^3             # trilinear displacement
-    ipp = DiscontinuousLagrange{RefHexahedron,0}()  # element-constant pressure
-    ipJ̄ = DiscontinuousLagrange{RefHexahedron,0}()  # element-constant J̄
-
-
-    # --- FE setup M---
-    dh = create_dofhandler(grid, ipu, ipp, ipJ̄)
+    # --- FE setup ---
+    dh   = create_dofhandler(grid, ipu, ipp, ipΘ)
     dbcs = create_bc(dh)
-    cvu, cvp, cvJ̄ = create_values(ipu, ipp, ipJ̄)
+    cvu, cvp, cvΘ = create_values(ipu, ipp, ipΘ)
 
     nd = ndofs(dh)
 
-    UT = Vector{Vector{Point{3,Float64}}}(undef, numSteps + 1)
-    UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
+    # --- Storage for visualization ---
+    UT         = Vector{Vector{Point{3,Float64}}}(undef, numSteps + 1)
+    UT_mag     = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(Float64, numSteps + 1)
 
-    # --- Newton vectors ---
-    un = zeros(nd)
-    u  = zeros(nd)
-    Δu = zeros(nd)
-    ΔΔu = zeros(nd)
+    # --- Solution vectors ---
+    un   = zeros(nd)
+    u    = zeros(nd)
+    Δu   = zeros(nd)
+    ΔΔu  = zeros(nd)
 
-    Ksys = allocate_matrix(dh)                      
-    g = zeros(nd)
+    Ksys = allocate_matrix(dh)
+    g    = zeros(nd)
 
-    # --- Parameters ---
-    NEWTON_TOL = 1e-8
-    NEWTON_MAXITER = 100
-
+    # --- Time parameters ---
     Tf = displacement_prescribed
     Δt = Tf / numSteps
 
-    # --- Initial condition ---
-    # Initialize J̄ DOFs to 1.0 (reference configuration: det F = 1)
-    J̄_dofs = dof_range(dh, :J̄)
+    # --- Initialize Θ DOFs to 1.0 (reference: det F = 1) ---
+    Θ_dof_range = dof_range(dh, :Θ)
     for cell in CellIterator(dh)
-        global_dofs = celldofs(cell)
-        for d in global_dofs[J̄_dofs]
+        gdofs = celldofs(cell)
+        for d in gdofs[Θ_dof_range]
             un[d] = 1.0
         end
     end
@@ -302,15 +327,17 @@ function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps)
     ux = getindex.(u_nodes, 1)
     uy = getindex.(u_nodes, 2)
     uz = getindex.(u_nodes, 3)
-    disp_points = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
-    UT[1] = disp_points
-    UT_mag[1] = norm.(disp_points)
+    disp_pts = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+    UT[1]         = disp_pts
+    UT_mag[1]     = norm.(disp_pts)
     ut_mag_max[1] = maximum(UT_mag[1])
 
-    # --- Time stepping ---
+    # ══════════════════════════════════════════════════════════
+    # TIME STEPPING + NEWTON
+    # ══════════════════════════════════════════════════════════
     for step in 1:numSteps
         t = step * Δt
-        println("\n=== Time step $step, t = $t ===")
+        println("\n=== Time step $step / $numSteps,  t = $t ===")
 
         Ferrite.update!(dbcs, t)
 
@@ -320,19 +347,20 @@ function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps)
         while true
             u .= un .+ Δu
             apply!(u, dbcs)
-            assemble_global!(Ksys, g, cvu, cvp, cvJ̄, dh, mp, u)
+
+            assemble_global!(Ksys, g, cvu, cvp, cvΘ, dh, mp, u)
 
             normg = norm(g[Ferrite.free_dofs(dbcs)])
+
             if normg < NEWTON_TOL
-                println("  Converged in $newton_itr iterations")
+                println("  Converged in $newton_itr iterations  (‖g‖ = $normg)")
                 break
             elseif newton_itr ≥ NEWTON_MAXITER
-                error("Newton failed to converge at time t = $t")
+                error("Newton failed to converge at t = $t")
             end
 
             apply_zero!(Ksys, g, dbcs)
             ΔΔu .= Ksys \ g
-
             apply_zero!(ΔΔu, dbcs)
 
             Δu .-= ΔΔu
@@ -341,32 +369,26 @@ function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps)
 
         un .= u
 
-        # --- Postprocessing ---
+        # --- Post-processing ---
         u_nodes = vec(evaluate_at_grid_nodes(dh, u, :u))
         ux = getindex.(u_nodes, 1)
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
-        disp_points = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_pts = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
 
-        UT[step + 1] = disp_points
-        UT_mag[step + 1] = norm.(disp_points)
+        UT[step + 1]         = disp_pts
+        UT_mag[step + 1]     = norm.(disp_pts)
         ut_mag_max[step + 1] = maximum(UT_mag[step + 1])
     end
 
     return UT, UT_mag, ut_mag_max
 end
 
-c1_mod = 10.0
-c2_mod = 20.0
-ν = 0.4999
-μ = 2*(c1_mod + c2_mod)
-K_mod = 2*μ*(1 + ν) / (3*(1 - 2*ν))
-K_mod/c1_mod
 
-displacement_prescribed = 2.0
-numSteps = 10
 
-UT, UT_mag, ut_mag_max  = solve(c1_mod, c2_mod, K_mod, grid, displacement_prescribed, numSteps)
+
+UT, UT_mag, ut_mag_max = solve(c1_mod, c2_mod, K_mod, grid,
+                               displacement_prescribed, numSteps)
 
 # Create displaced mesh per step
 scale = 1.0
