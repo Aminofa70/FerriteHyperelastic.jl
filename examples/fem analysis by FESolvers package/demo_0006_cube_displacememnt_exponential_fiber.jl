@@ -104,7 +104,9 @@ end
 function Ψ_fiber(C, mp::NeoHookeFiber)
     n_r = Vec{3}((cos(mp.θ) * sin(mp.ϕ), sin(mp.θ) * sin(mp.ϕ), cos(mp.ϕ)))
     Iₙ = n_r ⋅ (C ⋅ n_r)
-    x = max(Iₙ - 1.0, 0.0)  # tension only (Heaviside built in)
+    λ₀ = 1.0
+    I₀= sqrt(λ₀)
+    x = max(Iₙ - I₀, 0.0)  # tension only (Heaviside built in)
     if mp.α ≈ 0.0
         # Power law limit: lim α→0 of (ξ/(αβ))(exp(α x^β) - 1) = (ξ/β) x^β
         return (mp.ξ / mp.β) * x^mp.β
