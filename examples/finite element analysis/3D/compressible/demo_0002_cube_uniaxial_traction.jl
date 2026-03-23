@@ -119,33 +119,33 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
     for facet in 1:nfacets(cell)
         if (cellid(cell), facet) in ΓN
             reinit!(fv, cell, facet)
-
             for q_point in 1:getnquadpoints(fv)
-
                 ∇u = function_gradient(fv, q_point, ue)
                 F = one(∇u) + ∇u
                 J = det(F)
                 FinvT = inv(F)'
-
-                
-                T0 = J * (FinvT * tn)
-
+                C = F' ⋅ F
+                Cinv = inv(C)
+                N₀ = getnormal(fv, q_point)
+                # α = N₀ ⋅ C⁻¹ ⋅ N₀
+                m = Cinv ⋅ N₀
+                α = N₀ ⋅ m
+                sqrtα = sqrt(α)
+                Φ = J * sqrtα
+                T0 = Φ * tn
                 dΓ0 = getdetJdV(fv, q_point)
-
                 for i in 1:ndofs
                     δui = shape_value(fv, q_point, i)
                     ge[i] -= (δui ⋅ T0) * dΓ0
-
                     for j in 1:ndofs
                         ∇δuj = shape_gradient(fv, q_point, j)
                         δF = ∇δuj
-
-                        term1 = (FinvT ⊡ δF) * (FinvT * tn)
-                        term2 = FinvT * (δF' * (FinvT * tn))
-
-                        δT0 = J * (term1 - term2)
-
-                       ke[i, j] -= (δui ⋅ δT0) * dΓ0
+                        δJ = J * (FinvT ⊡ δF)
+                        δC = δF' ⋅ F + F' ⋅ δF
+                        δα = -(m ⋅ (δC ⋅ m))
+                        δΦ = sqrtα * δJ + (J / (2 * sqrtα)) * δα
+                        δT0 = δΦ * tn
+                        ke[i, j] -= (δui ⋅ δT0) * dΓ0
                     end
                 end
             end

@@ -3,10 +3,11 @@ using ComodoFerrite.Comodo
 using ComodoFerrite.Ferrite
 using ComodoFerrite.Comodo.GeometryBasics
 using ForwardDiff, IterativeSolvers, Roots
-using IterativeSolvers,Roots
+using IterativeSolvers, Roots
 using ComodoFerrite.Comodo.GLMakie
 GLMakie.closeall()
 
+Vec = Ferrite.Vec
 ## Geometry and Mesh
 function create_grid(Lx, Ly, nx, ny)
     corners = [
@@ -51,7 +52,7 @@ function Ψ(C, mp::NeoHooke)
     λ = mp.λ
     Ic = tr(C)
     J = sqrt(det(C))
-    return μ / 2 * (Ic - 3) -μ*log(J) + λ/2*(log(J))^2
+    return μ / 2 * (Ic - 3) - μ * log(J) + λ / 2 * (log(J))^2
 end
 
 function constitutive_driver(C, mp::NeoHooke)
@@ -118,35 +119,44 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
                 F = Tensor{2,3,Float64}((1.0 + ∇uu[1, 1], ∇uu[1, 2], 0.0,
                     ∇uu[2, 1], 1.0 + ∇uu[2, 2], 0.0,
                     0.0, 0.0, 1.0))
-                
+
                 J = det(F)
                 FinvT = inv(F)'
 
-                t = [tn[1], tn[2], 0.0]
-                T = J * (FinvT * t)
-                T = [T[1], T[2]]
+                C = F' ⋅ F
+                Cinv = inv(C)
+
+                N₀_2d = getnormal(fv, qp)
+                N₀ = Vec{3}((N₀_2d[1], N₀_2d[2], 0.0))
+
+                m = Cinv ⋅ N₀
+                α = N₀ ⋅ m
+                sqrtα = sqrt(α)
+                Φ = J * sqrtα
+
+                tn_vec = Vec{2}((tn[1], tn[2]))
+                T0 = Φ * tn_vec
 
                 dΓ0 = getdetJdV(fv, qp)
 
                 for i in 1:ndofs
                     δui = shape_value(fv, qp, i)
-                    ge[i] -= (δui ⋅ T) * dΓ0
+                    ge[i] -= (δui ⋅ T0) * dΓ0
 
                     for j in 1:ndofs
                         ∇δuj2d = shape_gradient(fv, qp, j)
-                        ∇δuj = Tensor{2,3,Float64}((
+                        δF = Tensor{2,3,Float64}((
                             ∇δuj2d[1, 1], ∇δuj2d[1, 2], 0.0,
                             ∇δuj2d[2, 1], ∇δuj2d[2, 2], 0.0,
-                            0.0, 0.0, 0.0
-                        ))
-                        δF = ∇δuj
+                            0.0, 0.0, 0.0))
 
-                        term1 = (FinvT ⊡ δF) * (FinvT * t)
-                        term2 = FinvT * (δF' * (FinvT * t))
+                        δJ = J * (FinvT ⊡ δF)
+                        δC = δF' ⋅ F + F' ⋅ δF
+                        δα = -(m ⋅ (δC ⋅ m))
+                        δΦ = sqrtα * δJ + (J / (2 * sqrtα)) * δα
+                        δT0 = δΦ * tn_vec
 
-                        δT0 = J * (term1 - term2)
-                       ke[i, j] -= (δui ⋅ δT0[1:2]) * dΓ0
-
+                        ke[i, j] -= (δui ⋅ δT0) * dΓ0
                     end
                 end
             end
@@ -190,21 +200,21 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
     nd = ndofs(dh)
 
     # --- Storage ---
-    UT         = Vector{Vector{Point{2,Float64}}}(undef, numSteps + 1)
-    UT_mag     = Vector{Vector{Float64}}(undef, numSteps + 1)
+    UT = Vector{Vector{Point{2,Float64}}}(undef, numSteps + 1)
+    UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(numSteps + 1)
 
     # --- Newton vectors ---
-    un  = zeros(nd)
-    u   = zeros(nd)
-    Δu  = zeros(nd)
+    un = zeros(nd)
+    u = zeros(nd)
+    Δu = zeros(nd)
     ΔΔu = zeros(nd)
 
     K = allocate_matrix(dh)
     g = zeros(nd)
 
     # --- Parameters ---
-    NEWTON_TOL     = 1e-8
+    NEWTON_TOL = 1e-8
     NEWTON_MAXITER = 100
 
     Tf = 1.0                    # load factor
@@ -223,7 +233,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
 
         # scaled traction vector
         τ = (t * traction_prescribed[1],
-             t * traction_prescribed[2])
+            t * traction_prescribed[2])
 
         while true
             u .= un .+ Δu
@@ -254,8 +264,8 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
         u_nodes = vec(evaluate_at_grid_nodes(dh, u, :u))
         disp_points = [Point{2,Float64}((p[1], p[2])) for p in u_nodes]
 
-        UT[step]         = disp_points
-        UT_mag[step]     = norm.(disp_points)
+        UT[step] = disp_points
+        UT_mag[step] = norm.(disp_points)
         ut_mag_max[step] = maximum(UT_mag[step])
     end
 
@@ -263,15 +273,15 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
 end
 
 Lx, Ly = 1, 1
-nx, ny = 10,10
+nx, ny = 10, 10
 grid = create_grid(Lx, Ly, nx, ny)
-F, V   = FerriteToComodo(grid)
+F, V = FerriteToComodo(grid)
 
 
 E = 10.0
 ν = 0.3
 
-traction_prescribed = (5.0 , 0.0)
+traction_prescribed = Vec{2}((5.0, 0.0))
 numSteps = 10
 UT, UT_mag, ut_mag_max = solve(E, ν, grid, traction_prescribed, numSteps)
 
@@ -286,25 +296,25 @@ min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000,600))
+fig_disp = Figure(size=(1000, 600))
 stepStart = 1  # Start at undeformed
-ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
+ax3 = Axis(fig_disp[1, 1], title="Step: $stepStart")
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
-hp = poly!(ax3, GeometryBasics.Mesh(VT[stepStart], F), 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
+hp = poly!(ax3, GeometryBasics.Mesh(VT[stepStart], F),
+    strokewidth=2,
+    color=UT_mag[stepStart],
+    transparency=false,
+    colormap=Reverse(:Spectral),
+    colorrange=(0, maximum(ut_mag_max)))
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]") 
+Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
 
 incRange = 1:numSteps
-hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart - 1, linewidth = 30)
+hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue=stepStart - 1, linewidth=30)
 
-on(hSlider.value) do stepIndex     
+on(hSlider.value) do stepIndex
     hp[1] = GeometryBasics.Mesh(VT[stepIndex], F)
     hp.color = UT_mag[stepIndex]
     ax3.title = "Step: $stepIndex"

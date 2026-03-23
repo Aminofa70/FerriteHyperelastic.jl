@@ -112,7 +112,7 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
             end
         end
     end
-    for facet in 1:nfacets(cell)
+     for facet in 1:nfacets(cell)
         if (cellid(cell), facet) in ΓN
             reinit!(fv, cell, facet)
 
@@ -122,35 +122,44 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
                 F = Tensor{2,3,Float64}((1.0 + ∇uu[1, 1], ∇uu[1, 2], 0.0,
                     ∇uu[2, 1], 1.0 + ∇uu[2, 2], 0.0,
                     0.0, 0.0, 1.0))
-                
+
                 J = det(F)
                 FinvT = inv(F)'
 
-                t = [tn[1], tn[2], 0.0]
-                T = J * (FinvT * t)
-                T = [T[1], T[2]]
+                C = F' ⋅ F
+                Cinv = inv(C)
+
+                N₀_2d = getnormal(fv, qp)
+                N₀ = Vec{3}((N₀_2d[1], N₀_2d[2], 0.0))
+
+                m = Cinv ⋅ N₀
+                α = N₀ ⋅ m
+                sqrtα = sqrt(α)
+                Φ = J * sqrtα
+
+                tn_vec = Vec{2}((tn[1], tn[2]))
+                T0 = Φ * tn_vec
 
                 dΓ0 = getdetJdV(fv, qp)
 
                 for i in 1:ndofs
                     δui = shape_value(fv, qp, i)
-                    ge[i] -= (δui ⋅ T) * dΓ0
+                    ge[i] -= (δui ⋅ T0) * dΓ0
 
                     for j in 1:ndofs
                         ∇δuj2d = shape_gradient(fv, qp, j)
-                        ∇δuj = Tensor{2,3,Float64}((
+                        δF = Tensor{2,3,Float64}((
                             ∇δuj2d[1, 1], ∇δuj2d[1, 2], 0.0,
                             ∇δuj2d[2, 1], ∇δuj2d[2, 2], 0.0,
-                            0.0, 0.0, 0.0
-                        ))
-                        δF = ∇δuj
+                            0.0, 0.0, 0.0))
 
-                        term1 = (FinvT ⊡ δF) * (FinvT * t)
-                        term2 = FinvT * (δF' * (FinvT * t))
+                        δJ = J * (FinvT ⊡ δF)
+                        δC = δF' ⋅ F + F' ⋅ δF
+                        δα = -(m ⋅ (δC ⋅ m))
+                        δΦ = sqrtα * δJ + (J / (2 * sqrtα)) * δα
+                        δT0 = δΦ * tn_vec
 
-                        δT0 = J * (term1 - term2)
-                       ke[i, j] -= (δui ⋅ δT0[1:2]) * dΓ0
-
+                        ke[i, j] -= (δui ⋅ δT0) * dΓ0
                     end
                 end
             end
@@ -275,7 +284,7 @@ F, V   = FerriteToComodo(grid)
 E = 10.0
 ν = 0.3
 
-traction_prescribed = (0.0 , 2.0)
+traction_prescribed = (0.0 , 0.7)
 numSteps = 10
 UT, UT_mag, ut_mag_max = solve(E, ν, grid, traction_prescribed, numSteps)
 
@@ -290,7 +299,7 @@ min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000,600))
+fig_disp = Figure(size=(800,600))
 stepStart = 1  # Start at undeformed
 ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
 
