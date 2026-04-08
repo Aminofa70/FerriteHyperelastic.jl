@@ -8,36 +8,79 @@ using IterativeSolvers
 using ComodoFerrite
 using ComodoFerrite.Ferrite
 using SparseArrays , LinearAlgebra
+using Geogram
 
-## GLMakie setting 
 GLMakie.closeall()
 
-## Mesh 
-boxDim = [5, 5, 5]
-boxEl = [10, 10, 10]
-E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
+###### 
+# Control parameters 
+E_youngs = 1.0
+ν = 0.3
+
+displacement_prescribed = 0.5
+
+###### 
+pointSpacing = 0.5
+level = 0.75
+s1 = -0.1*π
+s2 =  4.1*π
+ns = spacing2numsteps(s2-s1, pointSpacing/3.0; close_loop=false)
+x = range(s1, s2, ns)
+
+type=:G
+F1, V1 = tpms(type; x=x, level= -level, cap = true, padValue=1e8, side=:positive)
+F2, V2 = tpms(type; x=x, level= level, cap = true, padValue=1e8, side=:negative)
+
+np1 = spacing2numvertices(F1, V1, pointSpacing)
+F1,V1 = ggremesh(F1,V1; nb_pts=np1)
+
+np2 = spacing2numvertices(F2, V2, pointSpacing)
+F2,V2 = ggremesh(F2,V2; nb_pts=np2)
+
+V1_in = faceinteriorpoint(F1,V1,1)
+V2_in = faceinteriorpoint(F2,V2,1)
+
+Fb, Vb, Cb = joingeom(F1, V1, F2, V2)
+
+V_regions = [V1_in, V2_in]
+
+vol1 = pointSpacing^3 / (6.0*sqrt(2.0))
+region_vol = [vol1, vol1]
+stringOpt = "paAqYQ"
+E,V,CE,Fb,Cb = tetgenmesh(Fb,Vb; facetmarkerlist=Cb, V_regions=V_regions, region_vol=region_vol, stringOpt)
+
 grid = ComodoToFerrite(E, V)
+# Find boundary condition faces 
+indicesTopNodes = Vector{Int}()
+indicesBottomNodes = Vector{Int}()
+Z = [v[3] for v in V]
+zMax = maximum(Z)
+zMin = minimum(Z)
+search_tol = pointSpacing/2.0
+for f in Fb    
+    bTop = Z[f].>(zMax-search_tol)
+    bBottom = Z[f].<(zMin+search_tol)
+    if all(bTop)
+        append!(indicesTopNodes, f)        
+    end
+    if all(bBottom)
+        append!(indicesBottomNodes, f)        
+    end
+end
+indicesTopNodes = unique(indicesTopNodes)
+indicesBottomNodes = unique(indicesBottomNodes)
 
-Fb_bottom = Fb[Cb.==1]
-addface!(grid, "bottom", Fb_bottom)
-
-Fb_front = Fb[Cb.==3]
-addface!(grid, "front", Fb_front)
-
-Fb_top = Fb[Cb.==2]
-addface!(grid, "top", Fb_top)
-
-Fb_left = Fb[Cb.==6]
-addface!(grid, "left", Fb_left)
+addfacetset!(grid, "top", boundary_facets(grid, indicesTopNodes))
+addfacetset!(grid, "bottom", boundary_facets(grid, indicesBottomNodes))
 
 
 ## Finite Elemenet Values
 function create_values()
     order = 1
     dim = 3
-    ip = Lagrange{RefHexahedron,order}()^dim
-    qr = QuadratureRule{RefHexahedron}(2)
-    qr_face = FacetQuadratureRule{RefHexahedron}(1)
+    ip = Lagrange{RefTetrahedron,order}()^dim
+    qr = QuadratureRule{RefTetrahedron}(2)
+    qr_face = FacetQuadratureRule{RefTetrahedron}(1)
     cell_values = CellValues(qr, ip)
     facet_values = FacetValues(qr_face, ip)
     return cell_values, facet_values
@@ -46,23 +89,17 @@ end
 ## Create Degrees of freedom
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
-    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron,1}()^3)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefTetrahedron,1}()^3)
     Ferrite.close!(dh)
     return dh
 end
 
-max_displacement = 2.0  # total prescribed displacement in z
-
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0], [3])
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "front"), (x, t) -> [0.0], [2])
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "left"), (x, t) -> [0.0], [1])
+    dbc = Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0, 0.0, 0.0], [1, 2, 3])
     add!(ch, dbc)
     # Scale: t goes 0→1, displacement goes 0→max_displacement
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "top"), (x, t) -> [max_displacement * t], [3])
+    dbc = Dirichlet(:u, getfacetset(dh.grid, "top"), (x, t) -> [displacement_prescribed * t], [3])
     add!(ch, dbc)
     Ferrite.close!(ch)
     Ferrite.update!(ch, 0.0)
@@ -144,11 +181,8 @@ function assemble_global!(K, g, dh, cv, mp, u)
 end;
 
 
-## Material
-E_mod = 1.0
-ν = 0.4
-μ = E_mod / (2 * (1 + ν))
-λ = (E_mod * ν) / ((1 + ν) * (1 - 2ν))
+μ = E_youngs / (2 * (1 + ν))
+λ = (E_youngs * ν) / ((1 + ν) * (1 - 2ν))
 mp = NeoHooke(μ, λ)
 
 ## Post-processing storage
@@ -220,7 +254,7 @@ FESolvers.calculate_convergence_measure(p::NeoHookeProblem, args...) = norm(FESo
 function FESolvers.postprocess!(p::NeoHookeProblem, solver)
     push!(p.post.solutions, copy(p.buf.u))
     push!(p.post.times, p.buf.time[1])
-    #println("Step $(length(p.post.times)): t = $(p.buf.time[1]), max|u| = $(maximum(abs, p.buf.u))")
+    println("Step $(length(p.post.times)): t = $(p.buf.time[1]), max|u| = $(maximum(abs, p.buf.u))")
 end
 
 FESolvers.handle_converged!(::NeoHookeProblem) = nothing
@@ -229,47 +263,23 @@ FESolvers.handle_converged!(::NeoHookeProblem) = nothing
 def = NeoHookeModel()
 problem = build_problem(def)
 
-# solver = QuasiStaticSolver(
-#     NewtonSolver(; tolerance=1e-6, maxiter=30),
-#     FixedTimeStepper(; num_steps=10, Δt= 0.1, t_start=0.0)
-# )
+
+num_steps = 10
+Δt = 1/num_steps
 
 solver = QuasiStaticSolver(
-    NewtonSolver(; tolerance=1e-6, maxiter=30),
-    AdaptiveTimeStepper(0.05, 1.0;
-        t_start=0.0,
-        Δt_min=0.01,
-        Δt_max=0.2
-    )
+    NewtonSolver(;
+        linsolver=BackslashSolver(),
+        linesearch=NoLineSearch(),
+        maxiter= 100,
+        tolerance= 1.0e-6,
+        update_jac_first=true,
+        update_jac_each=true),
+    FixedTimeStepper(; num_steps=num_steps, Δt= Δt, t_start=0.0)
 )
+
 solve_problem!(problem, solver)
 
-# # Times at each step
-# problem.post.times          # [0.05, 0.10, 0.15, ..., 1.0]
-# # Solution (displacement vector) at each step
-# problem.post.solutions      # Vector of vectors
-# # Solution at step 3
-# u_step3 = problem.post.solutions[3]
-# # Number of steps
-# length(problem.post.solutions)
-# length(problem.post.times)
-
-
-## =======================================
-### other type for the solver 
-# num_steps = 20
-# Δt = 1/num_steps
-# solver = QuasiStaticSolver(
-#     NewtonSolver(;
-#         linsolver=BackslashSolver(),
-#         linesearch=NoLineSearch(),
-#         maxiter=30,
-#         tolerance=1.0e-9,
-#         update_jac_first=true,
-#         update_jac_each=true),
-#     FixedTimeStepper(; num_steps=num_steps, Δt= Δt, t_start=0.0)
-# )
-## =======================================
 
 
 function solution(disp , numSteps)
@@ -299,6 +309,7 @@ numSteps = length(problem.post.times)
 
 UT, UT_mag, ut_mag_max = solution(disp, numSteps)
 
+incRange = 1:numSteps
 # Create displaced mesh per step
 scale = 1.0
 VT = [V .+ scale .* UT[i] for i in 1:numSteps]
@@ -306,35 +317,20 @@ VT = [V .+ scale .* UT[i] for i in 1:numSteps]
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
-# === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
-stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title="Step: $stepStart")
+fig2 = Figure(size=(1200, 800))
+stepStart = incRange[end]
+ax1 = AxisGeom(fig2[1, 1], title = "Step: $stepStart", limits=(min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3]))
+hp1 = meshplot!(ax1, Fb, VT[end]; strokewidth=1, color=UT_mag[end], transparency=false, colormap = Reverse(:Spectral), colorrange=(0.0, maximum(ut_mag_max)))
+Colorbar(fig2[1, 2], hp1.plots[1], label = "Displacement magnitude [mm]") 
 
 
-xlims!(ax3, min_p[1], max_p[1])
-ylims!(ax3, min_p[2], max_p[2])
-zlims!(ax3, min_p[3], max_p[3])
+hSlider2 = Slider(fig2[2, :], range = incRange, startvalue = stepStart,linewidth=30)
 
-hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
-
-
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
-
-incRange = 1:numSteps
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue=stepStart - 1, linewidth=30)
-
-on(hSlider.value) do stepIndex
-    hp[1] = GeometryBasics.Mesh(VT[stepIndex], F)
-    hp.color = UT_mag[stepIndex]
-    ax3.title = "Step: $stepIndex"
+on(hSlider2.value) do stepIndex 
+    hp1[1] = GeometryBasics.Mesh(VT[stepIndex], Fb)
+    hp1.color = UT_mag[stepIndex]
+    ax1.title = "Step: $stepIndex"
 end
 
-slidercontrol(hSlider, ax3)
-display(GLMakie.Screen(), fig_disp)
-
+screen = display(GLMakie.Screen(), fig2)
+GLMakie.set_title!(screen, "FEBio example")
