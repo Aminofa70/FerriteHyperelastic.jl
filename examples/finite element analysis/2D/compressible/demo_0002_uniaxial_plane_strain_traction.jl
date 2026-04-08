@@ -285,38 +285,45 @@ traction_prescribed = Vec{2}((5.0, 0.0))
 numSteps = 10
 UT, UT_mag, ut_mag_max = solve(E, ν, grid, traction_prescribed, numSteps)
 
-
-# Create displaced mesh per step
+numInc = length(UT)          # 11 steps: 0 → 10
 scale = 1.0
 
+# Convert V to 2D points
 VV = [Point{2,Float64}(e[1], e[2]) for e in V]
-VT = [VV .+ scale .* UT[i] for i in 1:numSteps]
 
-min_p = minp([minp(V) for V in VT])
-max_p = maxp([maxp(V) for V in VT])
+# Use all steps (1-based indexing in Julia)
+VT = [VV .+ scale .* UT[i] for i in 1:numInc]
+
+# Slider from 0 → numInc-1
+incRange = 0:numInc-1
+
+min_p = minp([minp(VT[i]) for i in 1:numInc])
+max_p = maxp([maxp(VT[i]) for i in 1:numInc])
 
 # === Visualization setup ===
 fig_disp = Figure(size=(1000, 600))
-stepStart = 1  # Start at undeformed
-ax3 = Axis(fig_disp[1, 1], title="Step: $stepStart")
+stepStart = 1 
+ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
-hp = poly!(ax3, GeometryBasics.Mesh(VT[stepStart], F),
-    strokewidth=2,
-    color=UT_mag[stepStart],
-    transparency=false,
-    colormap=Reverse(:Spectral),
-    colorrange=(0, maximum(ut_mag_max)))
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
+# Initial mesh (step 0)
+hp = poly!(ax3, GeometryBasics.Mesh(VT[stepStart + 1], F), 
+           strokewidth = 2,
+           color = UT_mag[stepStart + 1], 
+           transparency = false, 
+           colormap = Reverse(:Spectral), 
+           colorrange = (0, maximum(ut_mag_max)))
 
-incRange = 1:numSteps
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue=stepStart - 1, linewidth=30)
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]") 
+
+hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
-    hp[1] = GeometryBasics.Mesh(VT[stepIndex], F)
-    hp.color = UT_mag[stepIndex]
+    i = stepIndex + 1  # shift to 1-based array index
+    hp[1] = GeometryBasics.Mesh(VT[i], F)
+    hp.color = UT_mag[i]
     ax3.title = "Step: $stepIndex"
 end
 

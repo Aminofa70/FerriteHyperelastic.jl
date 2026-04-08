@@ -76,7 +76,6 @@ function Ψ(F_arg, Θ, p_field, mp::MooneyRivlin)
     return Ψdev + Ψvol + Ψcoup
 end
 
-
 function constitutive_driver(F_arg, Θ, p_field, mp::MooneyRivlin)
 
     # Derivatives w.r.t. F via automatic differentiation
@@ -385,14 +384,14 @@ function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps;
 end
 
 
+UT, UT_mag, ut_mag_max = solve(c1_mod, c2_mod, K_mod, grid, displacement_prescribed, numSteps)
 
-
-UT, UT_mag, ut_mag_max = solve(c1_mod, c2_mod, K_mod, grid,
-                               displacement_prescribed, numSteps)
+numInc = length(UT)
 
 # Create displaced mesh per step
 scale = 1.0
-VT = [V .+ scale .* UT[i] for i in 1:numSteps]
+VT = [V .+ scale .* UT[i] for i in 1:(numSteps + 1)]
+incRange =  0:1:numInc-1
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
@@ -417,12 +416,12 @@ hp = meshplot!(ax3, Fb, VT[stepStart];
 
 Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
 
-incRange = 1:numSteps
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue=stepStart - 1, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
 
 on(hSlider.value) do stepIndex
-    hp[1] = GeometryBasics.Mesh(VT[stepIndex], F)
-    hp.color = UT_mag[stepIndex]
+    i = stepIndex + 1   # shift to 1-based indexing
+    hp[1] = GeometryBasics.Mesh(VT[i], F)
+    hp.color = UT_mag[i]
     ax3.title = "Step: $stepIndex"
 end
 
