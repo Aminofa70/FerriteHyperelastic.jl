@@ -39,47 +39,26 @@ function create_dofhandler(grid)
     return dh
 end
 
-# function rotation(X, t)
-#     θ = pi / 3 # 60°
-#     x, y, z = X
-#     L = 10.0
-
-#     return t * Ferrite.Vec{3}(
-#         (
-#             L/2 - x + (x - L/2)*cos(θ) + (z - L/2)*sin(θ),
-#             0.0,
-#             L/2 - z - (x - L/2)*sin(θ) + (z - L/2)*cos(θ),
-#         )
-#     )
-# end
-
-function rotation(X, t; Lx= 10.0, Lz=10.0)
-    θ = pi/3 # 60°
+Lx, Ly, Lz = 10.0, 40.0, 10.0
+nx, ny, nz = 5, 20, 5
+grid = create_grid(Lx, Ly, Lz, nx, ny, nz)
+function rotation_front(X, t; Lx=10.0, Lz=10.0)
+    θ = 2π * t  # full 360° twist, like the GIBBON demo
+    cx, cz = Lx/2, Lz/2
     x, y, z = X
-
-    return t * Ferrite.Vec{3}(
-        (
-            Lx/2 - x + (x - Lx/2)*cos(θ) + (z - Lz/2)*sin(θ),
-            0.0,
-            Lz/2 - z - (x - Lx/2)*sin(θ) + (z - Lz/2)*cos(θ),
-        )
-    )
+    x_new = cx + (x - cx)*cos(θ) + (z - cz)*sin(θ)
+    z_new = cz - (x - cx)*sin(θ) + (z - cz)*cos(θ)
+    return Ferrite.Vec{3}((x_new - x, 0.0, z_new - z))
 end
-
 
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "back"), (x, t) -> [0.0, 0.0, 0.0], [1, 2, 3]) # 
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "front"), (x, t) -> rotation(x, t), [1, 2, 3]) # 
-    add!(ch, dbc)
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "back"),  (x, t) -> [0.0, 0.0, 0.0], [1, 2, 3]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "front"), (x, t) -> rotation_front(x, t), [1, 2, 3]))
     Ferrite.close!(ch)
-    t = 0.0
-    Ferrite.update!(ch, t)
+    Ferrite.update!(ch, 0.0)
     return ch
 end
-
-
 struct NeoHooke
     μ::Float64
     λ::Float64
@@ -240,9 +219,7 @@ function solve(E, ν, grid, displacement_prescribed, numSteps)
     return UT, UT_mag, ut_mag_max
 end
 
-Lx, Ly, Lz = 10.0, 40.0, 10.0
-nx, ny, nz = 5, 10, 5
-grid = create_grid(Lx, Ly, Lz, nx, ny, nz)
+
 
 E, V, F, Fb, Cb = FerriteToComodo(grid)
 
@@ -251,7 +228,7 @@ E = 10.0
 ν = 0.3
 
 displacement_prescribed = 1.0
-numSteps = 10
+numSteps = 50
 UT, UT_mag, ut_mag_max = solve(E, ν, grid, displacement_prescribed, numSteps)
 
 
@@ -276,7 +253,7 @@ ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
 hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
+               strokewidth = 0.5,
                color = UT_mag[stepStart], 
                transparency = false, 
                colormap = Reverse(:Spectral), 
@@ -295,4 +272,10 @@ on(hSlider.value) do stepIndex
 end
 
 slidercontrol(hSlider, ax3)
+
+## for gif 
+# record(fig_disp, "beam_twist.gif", 1:(numSteps+1); framerate=10) do i
+#     stepIndex = i - 1
+#     set_close_to!(hSlider, stepIndex)
+# end
 display(GLMakie.Screen(), fig_disp)
