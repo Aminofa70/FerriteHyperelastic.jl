@@ -309,28 +309,49 @@ numSteps = length(problem.post.times)
 
 UT, UT_mag, ut_mag_max = solution(disp, numSteps)
 
-incRange = 1:numSteps
-# Create displaced mesh per step
-scale = 1.0
-VT = [V .+ scale .* UT[i] for i in 1:numSteps]
+GLMakie.closeall()
+numInc = length(UT)   # = numSteps + 1
 
-min_p = minp([minp(V) for V in VT])
-max_p = maxp([maxp(V) for V in VT])
+incRange = 0:numInc-1
+
+# Create displaced mesh per step (use ALL steps)
+scale = 1.0
+VT = [V .+ scale .* UT[i] for i in 1:numInc]
+
+min_p = minp([minp(Vi) for Vi in VT])
+max_p = maxp([maxp(Vi) for Vi in VT])
 
 fig2 = Figure(size=(1200, 800))
-stepStart = incRange[end]
-ax1 = AxisGeom(fig2[1, 1], title = "Step: $stepStart", limits=(min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3]))
-hp1 = meshplot!(ax1, Fb, VT[end]; strokewidth=1, color=UT_mag[end], transparency=false, colormap = Reverse(:Spectral), colorrange=(0.0, maximum(ut_mag_max)))
+
+stepStart = 1
+
+ax1 = AxisGeom(fig2[1, 1],
+    title = "Step: $stepStart",
+    limits=(min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3]))
+
+hp1 = meshplot!(ax1, Fb, VT[stepStart + 1];   # shift index
+    strokewidth=1,
+    color=UT_mag[stepStart + 1],
+    transparency=false,
+    colormap = Reverse(:Spectral),
+    colorrange=(0.0, maximum(ut_mag_max)))
+
 Colorbar(fig2[1, 2], hp1.plots[1], label = "Displacement magnitude [mm]") 
 
+hSlider2 = Slider(fig2[2, :],
+    range = incRange,
+    startvalue = stepStart,
+    linewidth=30)
 
-hSlider2 = Slider(fig2[2, :], range = incRange, startvalue = stepStart,linewidth=30)
+on(hSlider2.value) do stepIndex
+    i = stepIndex + 1   # 0-based → 1-based
 
-on(hSlider2.value) do stepIndex 
-    hp1[1] = GeometryBasics.Mesh(VT[stepIndex], Fb)
-    hp1.color = UT_mag[stepIndex]
+    hp1[1] = GeometryBasics.Mesh(VT[i], Fb)
+    hp1.color = UT_mag[i]
+
     ax1.title = "Step: $stepIndex"
 end
 
 screen = display(GLMakie.Screen(), fig2)
 GLMakie.set_title!(screen, "FEBio example")
+

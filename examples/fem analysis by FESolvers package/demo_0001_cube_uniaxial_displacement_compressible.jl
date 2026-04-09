@@ -220,7 +220,7 @@ FESolvers.calculate_convergence_measure(p::NeoHookeProblem, args...) = norm(FESo
 function FESolvers.postprocess!(p::NeoHookeProblem, solver)
     push!(p.post.solutions, copy(p.buf.u))
     push!(p.post.times, p.buf.time[1])
-    #println("Step $(length(p.post.times)): t = $(p.buf.time[1]), max|u| = $(maximum(abs, p.buf.u))")
+    println("Step $(length(p.post.times)): t = $(p.buf.time[1]), max|u| = $(maximum(abs, p.buf.u))")
 end
 
 FESolvers.handle_converged!(::NeoHookeProblem) = nothing
@@ -229,20 +229,21 @@ FESolvers.handle_converged!(::NeoHookeProblem) = nothing
 def = NeoHookeModel()
 problem = build_problem(def)
 
+### different solver types
 # solver = QuasiStaticSolver(
 #     NewtonSolver(; tolerance=1e-6, maxiter=30),
 #     FixedTimeStepper(; num_steps=10, Δt= 0.1, t_start=0.0)
 # )
 
-solver = QuasiStaticSolver(
-    NewtonSolver(; tolerance=1e-6, maxiter=30),
-    AdaptiveTimeStepper(0.05, 1.0;
-        t_start=0.0,
-        Δt_min=0.01,
-        Δt_max=0.2
-    )
-)
-solve_problem!(problem, solver)
+# solver = QuasiStaticSolver(
+#     NewtonSolver(; tolerance=1e-6, maxiter=30),
+#     AdaptiveTimeStepper(0.05, 1.0;
+#         t_start=0.0,
+#         Δt_min=0.01,
+#         Δt_max=0.2
+#     )
+# )
+
 
 # # Times at each step
 # problem.post.times          # [0.05, 0.10, 0.15, ..., 1.0]
@@ -257,20 +258,19 @@ solve_problem!(problem, solver)
 
 ## =======================================
 ### other type for the solver 
-# num_steps = 20
-# Δt = 1/num_steps
-# solver = QuasiStaticSolver(
-#     NewtonSolver(;
-#         linsolver=BackslashSolver(),
-#         linesearch=NoLineSearch(),
-#         maxiter=30,
-#         tolerance=1.0e-9,
-#         update_jac_first=true,
-#         update_jac_each=true),
-#     FixedTimeStepper(; num_steps=num_steps, Δt= Δt, t_start=0.0)
-# )
-## =======================================
-
+num_steps = 10
+Δt = 1/num_steps
+solver = QuasiStaticSolver(
+    NewtonSolver(;
+        linsolver=BackslashSolver(),
+        linesearch=NoLineSearch(),
+        maxiter=30,
+        tolerance=1.0e-9,
+        update_jac_first=true,
+        update_jac_each=true),
+    FixedTimeStepper(; num_steps=num_steps, Δt= Δt, t_start=0.0)
+)
+solve_problem!(problem, solver)
 
 function solution(disp , numSteps)
     UT = Vector{Vector{Point{3,Float64}}}(undef, numSteps)
@@ -299,9 +299,12 @@ numSteps = length(problem.post.times)
 
 UT, UT_mag, ut_mag_max = solution(disp, numSteps)
 
+numInc = length(UT)
+
 # Create displaced mesh per step
 scale = 1.0
-VT = [V .+ scale .* UT[i] for i in 1:numSteps]
+VT = [V .+ scale .* UT[i] for i in 1:(numSteps)]
+incRange =  0:1:numInc-1
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
@@ -326,15 +329,14 @@ hp = meshplot!(ax3, Fb, VT[stepStart];
 
 Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
 
-incRange = 1:numSteps
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue=stepStart - 1, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
 
 on(hSlider.value) do stepIndex
-    hp[1] = GeometryBasics.Mesh(VT[stepIndex], F)
-    hp.color = UT_mag[stepIndex]
+    i = stepIndex + 1   # shift to 1-based indexing
+    hp[1] = GeometryBasics.Mesh(VT[i], F)
+    hp.color = UT_mag[i]
     ax3.title = "Step: $stepIndex"
 end
 
 slidercontrol(hSlider, ax3)
 display(GLMakie.Screen(), fig_disp)
-

@@ -339,44 +339,60 @@ end
 #########################################################
 ## Visualization (FEBio.jl style)
 #########################################################
+numInc = length(UT)   # = numSteps + 1
 
 scale = 1.0
-VT = [V .+ scale .* UT[i] for i in 1:numSteps]
+VT = [V .+ scale .* UT[i] for i in 1:numInc]   # 
 
 min_p = minp([minp(Vi) for Vi in VT])
 max_p = maxp([maxp(Vi) for Vi in VT])
 
-incRange = 1:numSteps
+incRange = 0:numInc-1   # 0 → 10
 
 fig = Figure(size=(1600, 800))
-stepStart = numSteps
+stepStart = 1 
 
 ax1 = AxisGeom(fig[1, 1], title="Step: $stepStart",
     limits=(min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3]))
-hp1 = meshplot!(ax1, Fb, VT[end]; strokewidth=2, color=UT_mag[end],
-    transparency=false, colormap=Reverse(:Spectral),
+
+hp1 = meshplot!(ax1, Fb, VT[stepStart + 1];   # shift index
+    strokewidth=2,
+    color=UT_mag[stepStart + 1],
+    transparency=false,
+    colormap=Reverse(:Spectral),
     colorrange=(0.0, maximum(ut_mag_max)))
+
 Colorbar(fig[1, 2], hp1.plots[1], label="Displacement magnitude [mm]")
 
 ax3 = Axis(fig[1, 3], title="Step: $stepStart", aspect=AxisAspect(1),
     xlabel="Time [s]", ylabel="Force [N]")
+
 lines!(ax3, time_curve, Fz_curve, color=:red, linewidth=3)
-hp3 = scatter!(ax3, Point{2,Float64}(time_curve[stepStart], Fz_curve[stepStart]),
+
+hp3 = scatter!(ax3,
+    Point{2,Float64}(time_curve[stepStart + 1], Fz_curve[stepStart + 1]),
     markersize=15, color=:red)
 
 ax4 = Axis(fig[1, 4], title="Step: $stepStart", aspect=AxisAspect(1),
     xlabel="Max displacement [mm]", ylabel="Force [N]")
+
 lines!(ax4, ut_mag_max, Fz_curve, color=:blue, linewidth=3)
-hp4 = scatter!(ax4, Point{2,Float64}(ut_mag_max[stepStart], Fz_curve[stepStart]),
+
+hp4 = scatter!(ax4,
+    Point{2,Float64}(ut_mag_max[stepStart + 1], Fz_curve[stepStart + 1]),
     markersize=15, color=:blue)
 
 hSlider = Slider(fig[2, :], range=incRange, startvalue=stepStart, linewidth=30)
 
 on(hSlider.value) do stepIndex
-    hp1[1] = GeometryBasics.Mesh(VT[stepIndex], Fb)
-    hp1.color = UT_mag[stepIndex]
-    hp3[1] = Point{2,Float64}(time_curve[stepIndex], Fz_curve[stepIndex])
-    hp4[1] = Point{2,Float64}(ut_mag_max[stepIndex], Fz_curve[stepIndex])
+    i = stepIndex + 1   # convert 0-based → 1-based
+
+    hp1[1] = GeometryBasics.Mesh(VT[i], F)
+    hp1.color = UT_mag[i]
+
+    hp3[1] = Point{2,Float64}(time_curve[i], Fz_curve[i])
+    hp4[1] = Point{2,Float64}(ut_mag_max[i], Fz_curve[i])
+
     ax1.title = "Step: $stepIndex"
     ax3.title = "Step: $stepIndex"
     ax4.title = "Step: $stepIndex"

@@ -292,9 +292,12 @@ numSteps = length(problem.post.times)
 
 UT, UT_mag, ut_mag_max = solution(disp, numSteps)
 
+numInc = length(UT)
+
 # Create displaced mesh per step
 scale = 1.0
-VT = [V .+ scale .* UT[i] for i in 1:numSteps]
+VT = [V .+ scale .* UT[i] for i in 1:(numSteps)]
+incRange =  0:1:numInc-1
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
@@ -319,15 +322,14 @@ hp = meshplot!(ax3, Fb, VT[stepStart];
 
 Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
 
-incRange = 1:numSteps
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue=stepStart - 1, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
 
 on(hSlider.value) do stepIndex
-    hp[1] = GeometryBasics.Mesh(VT[stepIndex], F)
-    hp.color = UT_mag[stepIndex]
+    i = stepIndex + 1   # shift to 1-based indexing
+    hp[1] = GeometryBasics.Mesh(VT[i], F)
+    hp.color = UT_mag[i]
     ax3.title = "Step: $stepIndex"
 end
 
 slidercontrol(hSlider, ax3)
 display(GLMakie.Screen(), fig_disp)
-
