@@ -5,13 +5,15 @@ end
 
 ######################################################
 
-function calc_mat_constants_hyper_biaxial(modelType::AbstractString,
-                                          strainExp::AbstractVector,
-                                          Sexp::AbstractVector)
+function calc_mat_constants_hyper_biaxial(
+        modelType::AbstractString,
+        strainExp::AbstractVector,
+        Sexp::AbstractVector
+    )
 
     # detect zero stresses and filter
     detected_non_zero = Sexp .!= 0
-    Sexp      = Sexp[detected_non_zero]
+    Sexp = Sexp[detected_non_zero]
     strainExp = strainExp[detected_non_zero]
 
     # weights W = 1 ./ Sexp  (FLOATING division)
@@ -49,7 +51,7 @@ function calc_mat_constants_hyper_biaxial(modelType::AbstractString,
         error("Unknown modelType: $modelType (expected 'neo-hookean', 'mooney-rivlin', or 'yeoh').")
     end
 
-    xnew  = Diagonal(W) * x
+    xnew = Diagonal(W) * x
     SeNew = Diagonal(W) * Sexp
 
     # Solve normal equations
@@ -59,9 +61,11 @@ function calc_mat_constants_hyper_biaxial(modelType::AbstractString,
 end
 
 ######################################################
-function calc_mat_constants_hyper_ogden_linear(data_type::AbstractString,
-    strainExp::AbstractVector,
-    Sexp::AbstractVector)
+function calc_mat_constants_hyper_ogden_linear(
+        data_type::AbstractString,
+        strainExp::AbstractVector,
+        Sexp::AbstractVector
+    )
 
     # pick c based on data_type
     c = data_type == "uniaxial" ? -0.5 :
@@ -121,8 +125,8 @@ function calc_mat_constants_hyper_ogden_linear(data_type::AbstractString,
         shearMod = calc_init_shear_mod(params, initial_alpha)
 
         bad = any((params .== 0) .| isnan.(params)) ||
-              any(params .<= 0) ||
-              !(shearMod > 0)
+            any(params .<= 0) ||
+            !(shearMod > 0)
 
         if bad
             # Change initial guess for the third alpha (random in [-6,-1])
@@ -152,12 +156,13 @@ function calc_mat_constants_hyper_ogden_linear(data_type::AbstractString,
 end
 
 
-
-function calc_residual_and_jacobian(data_type::AbstractString,
-    strainExp::AbstractVector,
-    Sexp::AbstractVector,
-    params::AbstractVector,
-    normalization_factor)
+function calc_residual_and_jacobian(
+        data_type::AbstractString,
+        strainExp::AbstractVector,
+        Sexp::AbstractVector,
+        params::AbstractVector,
+        normalization_factor
+    )
 
     # set c by data type
     c = data_type == "uniaxial" ? -0.5 :
@@ -182,15 +187,15 @@ function calc_residual_and_jacobian(data_type::AbstractString,
         # derivatives wrt μ and α for each pair
         dSdmu1 = (2 / a1) * (lam^(a1 - 1) - lam^(c * a1 - 1))
         dSda1 = (2 * μ1 * (lam^(a1 - 1) * L - lam^(a1 * c - 1) * c * L)) / a1 +
-                (2 * μ1 * (lam^(a1 * c - 1) - lam^(a1 - 1))) / a1^2
+            (2 * μ1 * (lam^(a1 * c - 1) - lam^(a1 - 1))) / a1^2
 
         dSdmu2 = (2 / a2) * (lam^(a2 - 1) - lam^(c * a2 - 1))
         dSda2 = (2 * μ2 * (lam^(a2 - 1) * L - lam^(a2 * c - 1) * c * L)) / a2 +
-                (2 * μ2 * (lam^(a2 * c - 1) - lam^(a2 - 1))) / a2^2
+            (2 * μ2 * (lam^(a2 * c - 1) - lam^(a2 - 1))) / a2^2
 
         dSdmu3 = (2 / a3) * (lam^(a3 - 1) - lam^(c * a3 - 1))
         dSda3 = (2 * μ3 * (lam^(a3 - 1) * L - lam^(a3 * c - 1) * c * L)) / a3 +
-                (2 * μ3 * (lam^(a3 * c - 1) - lam^(a3 - 1))) / a3^2
+            (2 * μ3 * (lam^(a3 * c - 1) - lam^(a3 - 1))) / a3^2
 
         jacobian[k, 1] = (-1 / Sexp[k]) * dSdmu1
         jacobian[k, 2] = (-1 / Sexp[k]) * dSda1
@@ -220,9 +225,11 @@ function calc_residual_and_jacobian(data_type::AbstractString,
 end
 
 ######################################################
-function calc_mat_constants_hyper_ogden(dataType::AbstractString,
-    strainExp::AbstractVector,
-    Sexp::AbstractVector)
+function calc_mat_constants_hyper_ogden(
+        dataType::AbstractString,
+        strainExp::AbstractVector,
+        Sexp::AbstractVector
+    )
 
     # --- detect zero stress & filter ---
     keep = Sexp .!= 0
@@ -232,7 +239,7 @@ function calc_mat_constants_hyper_ogden(dataType::AbstractString,
     # normalization factor (safe even if Sexp is empty or all ~0)
     normalization_factor =
         isempty(Sexp) ? 1.0 :
-        max(maximum(abs.(Sexp)), 1e-12)  # avoid exactly 0; MATLAB used 1.0 as safety
+        max(maximum(abs.(Sexp)), 1.0e-12)  # avoid exactly 0; MATLAB used 1.0 as safety
     if normalization_factor == 0
         normalization_factor = 1.0
     end
@@ -253,7 +260,7 @@ function calc_mat_constants_hyper_ogden(dataType::AbstractString,
     restart_count = 0
 
     # --- LM settings ---
-    toler = 1e-3
+    toler = 1.0e-3
     damping_increase = 10.0
     damping_decrease = 3.0
     maxIter = 1000
@@ -274,9 +281,9 @@ function calc_mat_constants_hyper_ogden(dataType::AbstractString,
 
         _, J0 = calc_residual_and_jacobian(dataType, strainExp, Sexp, params, normalization_factor)
         JtJ0 = J0' * J0
-        τ = 1e-6 * maximum(diag(JtJ0))
+        τ = 1.0e-6 * maximum(diag(JtJ0))
         if !(τ > 0)   # covers τ == 0 and NaN
-            τ = 1e-6
+            τ = 1.0e-6
         end
 
         for _ in 1:maxIter
@@ -294,7 +301,7 @@ function calc_mat_constants_hyper_ogden(dataType::AbstractString,
 
             # LM inner loop: adjust damping until improvement
             while true
-                if τ > 1e20
+                if τ > 1.0e20
                     fit_stalled = true
                     break
                 end
@@ -329,9 +336,11 @@ function calc_mat_constants_hyper_ogden(dataType::AbstractString,
     return params
 end
 
-function calc_mat_constants_hyper_shear(modelType::AbstractString,
-    strainExp::AbstractVector,
-    Sexp::AbstractVector)
+function calc_mat_constants_hyper_shear(
+        modelType::AbstractString,
+        strainExp::AbstractVector,
+        Sexp::AbstractVector
+    )
 
     # detect zero stress and filter
     keep = Sexp .!= 0
@@ -380,9 +389,11 @@ function calc_mat_constants_hyper_shear(modelType::AbstractString,
 end
 
 
-function calc_mat_constants_hyper_uniaxial(modelType::AbstractString,
-    strainExp::AbstractVector,
-    Sexp::AbstractVector)
+function calc_mat_constants_hyper_uniaxial(
+        modelType::AbstractString,
+        strainExp::AbstractVector,
+        Sexp::AbstractVector
+    )
 
     # detect zero stress and filter
     keep = Sexp .!= 0
@@ -430,9 +441,11 @@ function calc_mat_constants_hyper_uniaxial(modelType::AbstractString,
     return mat_cons
 end
 
-function drucker_stability_biaxial(modelType::AbstractString,
-    mat_cons,
-    λ::Real)
+function drucker_stability_biaxial(
+        modelType::AbstractString,
+        mat_cons,
+        λ::Real
+    )
 
     # Helper to read coefficients whether mat_cons is a Vector or a Matrix
     getc(i) = ndims(mat_cons) == 1 ? mat_cons[i] : mat_cons[i, 1]
@@ -482,7 +495,7 @@ function drucker_stability_biaxial(modelType::AbstractString,
     end
 end
 
-function drucker_stability_hyper(modelType::AbstractString, mat_cons,)
+function drucker_stability_hyper(modelType::AbstractString, mat_cons)
     # expects the following helpers to exist:
     #   drucker_stability_uniaxial(modelType, mat_cons, λ)::Int
     #   drucker_stability_biaxial(modelType, mat_cons, λ)::Int
@@ -787,10 +800,12 @@ function drucker_stability_uniaxial(modelType::AbstractString, mat_cons, λ::Rea
     end
 end
 
-function solver_constants_hyper(data_type::AbstractString,
-    modelType::AbstractString,
-    strainExp::AbstractVector,
-    Sexp::AbstractVector)
+function solver_constants_hyper(
+        data_type::AbstractString,
+        modelType::AbstractString,
+        strainExp::AbstractVector,
+        Sexp::AbstractVector
+    )
 
     # Guard rails
     if data_type == "shear" && modelType == "mooney-rivlin"
@@ -801,17 +816,17 @@ function solver_constants_hyper(data_type::AbstractString,
 
     # Fit material constants
     mat_cons =
-        if modelType == "ogden"
-            calc_mat_constants_hyper_ogden(data_type, strainExp, Sexp)
-        elseif data_type == "uniaxial"
-            calc_mat_constants_hyper_uniaxial(modelType, strainExp, Sexp)
-        elseif data_type == "biaxial"
-            calc_mat_constants_hyper_biaxial(modelType, strainExp, Sexp)
-        elseif data_type == "shear"
-            calc_mat_constants_hyper_shear(modelType, strainExp, Sexp)
-        else
-            error("Unknown data_type: $data_type")
-        end
+    if modelType == "ogden"
+        calc_mat_constants_hyper_ogden(data_type, strainExp, Sexp)
+    elseif data_type == "uniaxial"
+        calc_mat_constants_hyper_uniaxial(modelType, strainExp, Sexp)
+    elseif data_type == "biaxial"
+        calc_mat_constants_hyper_biaxial(modelType, strainExp, Sexp)
+    elseif data_type == "shear"
+        calc_mat_constants_hyper_shear(modelType, strainExp, Sexp)
+    else
+        error("Unknown data_type: $data_type")
+    end
 
     # ---- ensure this is defined before any prints/returns ----
     mat_cons_solver = ""

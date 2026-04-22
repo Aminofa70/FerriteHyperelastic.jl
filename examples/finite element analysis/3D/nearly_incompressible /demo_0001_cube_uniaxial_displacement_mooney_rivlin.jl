@@ -10,7 +10,7 @@ using SparseArrays
 using BlockArrays
 
 boxDim = [10, 10, 10]
-boxEl  = [5, 5, 5]
+boxEl = [5, 5, 5]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 
 c1_mod = 10.0
@@ -40,9 +40,9 @@ addface!(grid, "left", Fb_left)
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
     add!(ch, Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0], [3]))
-    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "front"),  (x, t) -> [0.0], [2]))
-    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "left"),   (x, t) -> [0.0], [1]))
-    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "top"),    (x, t) -> [t],   [3]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "front"), (x, t) -> [0.0], [2]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "left"), (x, t) -> [0.0], [1]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "top"), (x, t) -> [t], [3]))
     Ferrite.close!(ch)
     Ferrite.update!(ch, 0.0)
     return ch
@@ -58,7 +58,7 @@ end
 function Ψ(F_arg, Θ, p_field, mp::MooneyRivlin)
     c1, c2, K = mp.c1, mp.c2, mp.K
     J = det(F_arg)
-    F̃ = J^(-1/3) * F_arg
+    F̃ = J^(-1 / 3) * F_arg
     C̃ = tdot(F̃)                   # C̃ = F̃ᵀ F̃
 
     Ī₁ = tr(C̃)
@@ -89,7 +89,7 @@ function constitutive_driver(F_arg, Θ, p_field, mp::MooneyRivlin)
     #   U''(Θ) = K (1 − ln Θ) / Θ²
     K = mp.K
     lnΘ = log(Θ)
-    ∂Ψ∂Θ   = K * lnΘ / Θ - p_field
+    ∂Ψ∂Θ = K * lnΘ / Θ - p_field
     ∂²Ψ∂Θ² = K * (1.0 - lnΘ) / (Θ^2)
 
     return ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂Θ, ∂²Ψ∂Θ²
@@ -102,15 +102,17 @@ end
 #
 #  Three-field: (u, p, Θ)
 #
-#  Block 1 — u (equilibrium):        
-#  Block 2 — p (constraint J = Θ):   
-#  Block 3 — Θ (volumetric):         
+#  Block 1 — u (equilibrium):
+#  Block 2 — p (constraint J = Θ):
+#  Block 3 — Θ (volumetric):
 #
-#  
+#
 # ══════════════════════════════════════════════════════════════
 
-function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
-                           mp, ue, pe, Θe)
+function assemble_element!(
+        Ke, fe, cell, cvu, cvp, cvΘ,
+        mp, ue, pe, Θe
+    )
 
     reinit!(cvu, cell)
     reinit!(cvp, cell)
@@ -127,17 +129,17 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
         dΩ = getdetJdV(cvu, qp)
 
         # --- Current state at quadrature point ---
-        ∇u   = function_gradient(cvu, qp, ue)
+        ∇u = function_gradient(cvu, qp, ue)
         F_qp = one(∇u) + ∇u
-        p̂    = function_value(cvp, qp, pe)
-        Θ̂    = function_value(cvΘ, qp, Θe)
+        p̂ = function_value(cvp, qp, pe)
+        Θ̂ = function_value(cvΘ, qp, Θe)
 
         # --- Constitutive evaluation ---
         ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂Θ, ∂²Ψ∂Θ² =
             constitutive_driver(F_qp, Θ̂, p̂, mp)
 
         Finv = inv(F_qp)
-        J    = det(F_qp)
+        J = det(F_qp)
         # ════════════════════════════════════════════════════
         # Block 1 — u-equation (equilibrium)
         #   Rᵤ[i] = ∫ ∇Nᵢ : P dV,  P = ∂Ψ/∂F
@@ -146,12 +148,12 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
             ∇Nᵢ = shape_gradient(cvu, qp, i)
 
             # Residual
-            fe[BlockIndex((1,),(i,))] += (∇Nᵢ ⊡ ∂Ψ∂F) * dΩ
+            fe[BlockIndex((1,), (i,))] += (∇Nᵢ ⊡ ∂Ψ∂F) * dΩ
 
             # Kuu — material + geometric stiffness
             for j in 1:nu
                 ∇Nⱼ = shape_gradient(cvu, qp, j)
-                Ke[BlockIndex((1,1),(i,j))] += (∇Nᵢ ⊡ ∂²Ψ∂F² ⊡ ∇Nⱼ) * dΩ
+                Ke[BlockIndex((1, 1), (i, j))] += (∇Nᵢ ⊡ ∂²Ψ∂F² ⊡ ∇Nⱼ) * dΩ
             end
 
             # δJ_i = J F⁻ᵀ : ∇Nᵢ  (variation of det F)
@@ -160,8 +162,8 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
             # Kup & Kpu — symmetric coupling
             for j in 1:np
                 Nⱼᵖ = shape_value(cvp, qp, j)
-                Ke[BlockIndex((1,2),(i,j))] += δJ_i * Nⱼᵖ * dΩ
-                Ke[BlockIndex((2,1),(j,i))] += δJ_i * Nⱼᵖ * dΩ
+                Ke[BlockIndex((1, 2), (i, j))] += δJ_i * Nⱼᵖ * dΩ
+                Ke[BlockIndex((2, 1), (j, i))] += δJ_i * Nⱼᵖ * dΩ
             end
         end
 
@@ -173,12 +175,12 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
             Nᵢᵖ = shape_value(cvp, qp, i)
 
             # Residual
-            fe[BlockIndex((2,),(i,))] += Nᵢᵖ * (J - Θ̂) * dΩ
+            fe[BlockIndex((2,), (i,))] += Nᵢᵖ * (J - Θ̂) * dΩ
 
             # KpΘ — off-diagonal coupling
             for j in 1:nΘ
                 NⱼΘ = shape_value(cvΘ, qp, j)
-                Ke[BlockIndex((2,3),(i,j))] -= Nᵢᵖ * NⱼΘ * dΩ
+                Ke[BlockIndex((2, 3), (i, j))] -= Nᵢᵖ * NⱼΘ * dΩ
             end
         end
 
@@ -187,26 +189,27 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
         #   RΘ[i] = ∫ NᵢΘ (U'(Θ) − p) dV
         #   KΘΘ uses U''(Θ) = K(1 − ln Θ)/Θ²
         # ════════════════════════════════════════════════════
-        # 
+        #
         for i in 1:nΘ
             NᵢΘ = shape_value(cvΘ, qp, i)
 
             # Residual
-            fe[BlockIndex((3,),(i,))] += NᵢΘ * ∂Ψ∂Θ * dΩ
+            fe[BlockIndex((3,), (i,))] += NᵢΘ * ∂Ψ∂Θ * dΩ
 
             # KΘΘ — volumetric tangent
             for j in 1:nΘ
                 NⱼΘ = shape_value(cvΘ, qp, j)
-                Ke[BlockIndex((3,3),(i,j))] += NᵢΘ * ∂²Ψ∂Θ² * NⱼΘ * dΩ
+                Ke[BlockIndex((3, 3), (i, j))] += NᵢΘ * ∂²Ψ∂Θ² * NⱼΘ * dΩ
             end
 
             # KΘp — (= KpΘᵀ)
             for j in 1:np
                 Nⱼᵖ = shape_value(cvp, qp, j)
-                Ke[BlockIndex((3,2),(i,j))] -= NᵢΘ * Nⱼᵖ * dΩ
+                Ke[BlockIndex((3, 2), (i, j))] -= NᵢΘ * Nⱼᵖ * dΩ
             end
         end
     end
+    return
 end
 
 
@@ -214,9 +217,11 @@ end
 # 7. GLOBAL ASSEMBLY
 # ══════════════════════════════════════════════════════════════
 
-function assemble_global!(K::SparseMatrixCSC, f,
-                          cvu, cvp, cvΘ,
-                          dh, mp, w)
+function assemble_global!(
+        K::SparseMatrixCSC, f,
+        cvu, cvp, cvΘ,
+        dh, mp, w
+    )
 
     nu = getnbasefunctions(cvu)
     np = getnbasefunctions(cvp)
@@ -232,8 +237,8 @@ function assemble_global!(K::SparseMatrixCSC, f,
         global_dofs = celldofs(cell)
 
         global_dofs_u = global_dofs[1:nu]
-        global_dofs_p = global_dofs[(nu+1):(nu+np)]
-        global_dofs_Θ = global_dofs[(nu+np+1):end]
+        global_dofs_p = global_dofs[(nu + 1):(nu + np)]
+        global_dofs_Θ = global_dofs[(nu + np + 1):end]
 
         @assert length(global_dofs) == ntot
 
@@ -241,8 +246,10 @@ function assemble_global!(K::SparseMatrixCSC, f,
         pe = w[global_dofs_p]
         Θe = w[global_dofs_Θ]
 
-        assemble_element!(ke, fe, cell, cvu, cvp, cvΘ,
-                          mp, ue, pe, Θe)
+        assemble_element!(
+            ke, fe, cell, cvu, cvp, cvΘ,
+            mp, ue, pe, Θe
+        )
 
         assemble!(assembler, global_dofs, ke, fe)
     end
@@ -255,7 +262,7 @@ end
 # ══════════════════════════════════════════════════════════════
 
 function create_values(ipu, ipp, ipΘ)
-    qr  = QuadratureRule{RefHexahedron}(2)
+    qr = QuadratureRule{RefHexahedron}(2)
     cvu = CellValues(qr, ipu)
     cvp = CellValues(qr, ipp)
     cvΘ = CellValues(qr, ipΘ)
@@ -273,37 +280,39 @@ end
 
 #Standard Newton iteration for the three-field principle.
 
-function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps;
-               NEWTON_TOL = 1e-8, NEWTON_MAXITER = 100)
+function solve(
+        c1, c2, bulk, grid, displacement_prescribed, numSteps;
+        NEWTON_TOL = 1.0e-8, NEWTON_MAXITER = 100
+    )
 
     # --- Material ---
     mp = MooneyRivlin(c1, c2, bulk)
 
     # --- Interpolations: Q1/P0/P0 ---
-    ipu = Lagrange{RefHexahedron,1}()^3
-    ipp = DiscontinuousLagrange{RefHexahedron,0}()
-    ipΘ = DiscontinuousLagrange{RefHexahedron,0}()
+    ipu = Lagrange{RefHexahedron, 1}()^3
+    ipp = DiscontinuousLagrange{RefHexahedron, 0}()
+    ipΘ = DiscontinuousLagrange{RefHexahedron, 0}()
 
     # --- FE setup ---
-    dh   = create_dofhandler(grid, ipu, ipp, ipΘ)
+    dh = create_dofhandler(grid, ipu, ipp, ipΘ)
     dbcs = create_bc(dh)
     cvu, cvp, cvΘ = create_values(ipu, ipp, ipΘ)
 
     nd = ndofs(dh)
 
     # --- Storage for visualization ---
-    UT         = Vector{Vector{Point{3,Float64}}}(undef, numSteps + 1)
-    UT_mag     = Vector{Vector{Float64}}(undef, numSteps + 1)
+    UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps + 1)
+    UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(Float64, numSteps + 1)
 
     # --- Solution vectors ---
-    un   = zeros(nd)
-    u    = zeros(nd)
-    Δu   = zeros(nd)
-    ΔΔu  = zeros(nd)
+    un = zeros(nd)
+    u = zeros(nd)
+    Δu = zeros(nd)
+    ΔΔu = zeros(nd)
 
     Ksys = allocate_matrix(dh)
-    g    = zeros(nd)
+    g = zeros(nd)
 
     # --- Time parameters ---
     Tf = displacement_prescribed
@@ -326,9 +335,9 @@ function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps;
     ux = getindex.(u_nodes, 1)
     uy = getindex.(u_nodes, 2)
     uz = getindex.(u_nodes, 3)
-    disp_pts = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
-    UT[1]         = disp_pts
-    UT_mag[1]     = norm.(disp_pts)
+    disp_pts = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+    UT[1] = disp_pts
+    UT_mag[1] = norm.(disp_pts)
     ut_mag_max[1] = maximum(UT_mag[1])
 
     # ══════════════════════════════════════════════════════════
@@ -373,10 +382,10 @@ function solve(c1, c2, bulk, grid, displacement_prescribed, numSteps;
         ux = getindex.(u_nodes, 1)
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
-        disp_pts = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_pts = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
 
-        UT[step + 1]         = disp_pts
-        UT_mag[step + 1]     = norm.(disp_pts)
+        UT[step + 1] = disp_pts
+        UT_mag[step + 1] = norm.(disp_pts)
         ut_mag_max[step + 1] = maximum(UT_mag[step + 1])
     end
 
@@ -391,32 +400,34 @@ numInc = length(UT)
 # Create displaced mesh per step
 scale = 1.0
 VT = [V .+ scale .* UT[i] for i in 1:(numSteps + 1)]
-incRange =  0:1:numInc-1
+incRange = 0:1:(numInc - 1)
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
+fig_disp = Figure(size = (1000, 600))
 stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title="Step: $stepStart")
+ax3 = AxisGeom(fig_disp[1, 1], title = "Step: $stepStart")
 
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
-hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
+hp = meshplot!(
+    ax3, Fb, VT[stepStart];
+    strokewidth = 2,
+    color = UT_mag[stepStart],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0, maximum(ut_mag_max))
+)
 
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
     i = stepIndex + 1   # shift to 1-based indexing

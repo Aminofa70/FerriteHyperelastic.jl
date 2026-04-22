@@ -25,7 +25,7 @@ C1 = mat_cons_solver[1]
 λ1 = @. ϵ + 1
 λ = λ1
 λ2 = @. 1 / sqrt(λ)
-λ3 = λ2   
+λ3 = λ2
 
 # neo-Hookean stress (uniaxial nominal stress)
 P_model = @. 2 * C1 * (λ - 1 / λ^2)
@@ -33,11 +33,11 @@ P_model = @. 2 * C1 * (λ - 1 / λ^2)
 # Plot results
 GLMakie.closeall()
 
-fig = Figure(size=(800, 600), fontsize=26)
-ax = Axis(fig[1, 1], xlabel= L"\mathscr{ε}", ylabel=L"P",  xgridvisible=false, ygridvisible=false)
+fig = Figure(size = (800, 600), fontsize = 26)
+ax = Axis(fig[1, 1], xlabel = L"\mathscr{ε}", ylabel = L"P", xgridvisible = false, ygridvisible = false)
 
-lines!(ax, ϵ, P_model, color = :black, label="Fit, neo-Hookean")
-scatter!(ax, strainExp, P_exp, marker=:circle, color=:red, label="Uniaxial experiment")
+lines!(ax, ϵ, P_model, color = :black, label = "Fit, neo-Hookean")
+scatter!(ax, strainExp, P_exp, marker = :circle, color = :red, label = "Uniaxial experiment")
 
-axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray)
+axislegend(ax, position = :lt, backgroundcolor = (:white, 0.7), framecolor = :gray)
 display(fig)

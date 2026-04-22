@@ -7,27 +7,27 @@ using Comodo.Statistics
 using IterativeSolvers
 using ComodoFerrite
 using ComodoFerrite.Ferrite
-using SparseArrays , LinearAlgebra
+using SparseArrays, LinearAlgebra
 
-## GLMakie setting 
+## GLMakie setting
 GLMakie.closeall()
 
-## Mesh 
+## Mesh
 boxDim = [5, 5, 5]
 boxEl = [10, 10, 10]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 grid = ComodoToFerrite(E, V)
 
-Fb_bottom = Fb[Cb.==1]
+Fb_bottom = Fb[Cb .== 1]
 addface!(grid, "bottom", Fb_bottom)
 
-Fb_front = Fb[Cb.==3]
+Fb_front = Fb[Cb .== 3]
 addface!(grid, "front", Fb_front)
 
-Fb_top = Fb[Cb.==2]
+Fb_top = Fb[Cb .== 2]
 addface!(grid, "top", Fb_top)
 
-Fb_left = Fb[Cb.==6]
+Fb_left = Fb[Cb .== 6]
 addface!(grid, "left", Fb_left)
 
 
@@ -35,7 +35,7 @@ addface!(grid, "left", Fb_left)
 function create_values()
     order = 1
     dim = 3
-    ip = Lagrange{RefHexahedron,order}()^dim
+    ip = Lagrange{RefHexahedron, order}()^dim
     qr = QuadratureRule{RefHexahedron}(2)
     qr_face = FacetQuadratureRule{RefHexahedron}(1)
     cell_values = CellValues(qr, ip)
@@ -46,7 +46,7 @@ end
 ## Create Degrees of freedom
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
-    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron,1}()^3)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron, 1}()^3)
     Ferrite.close!(dh)
     return dh
 end
@@ -90,7 +90,6 @@ function constitutive_driver(C, mp::NeoHooke)
 end;
 
 
-
 function assemble_element!(ke, ge, cell, cv, mp, ue)
     reinit!(cv, cell)
     fill!(ke, 0.0)
@@ -123,6 +122,7 @@ function assemble_element!(ke, ge, cell, cv, mp, ue)
             end
         end
     end
+    return
 end;
 
 function assemble_global!(K, g, dh, cv, mp, u)
@@ -159,13 +159,13 @@ end
 NeoHookePost() = NeoHookePost(Vector{Float64}[], Float64[])
 
 ## Problem struct
-struct NeoHookeProblem{PD,PB,PP}
+struct NeoHookeProblem{PD, PB, PP}
     def::PD
     buf::PB
     post::PP
 end
 
-struct NeoHookeModel{DH,CH,M}
+struct NeoHookeModel{DH, CH, M}
     dh::DH
     ch::CH
     material::M
@@ -177,7 +177,7 @@ function NeoHookeModel()
     return NeoHookeModel(dh, ch, mp)
 end
 
-struct NeoHookeBuffer{CV,KT,T}
+struct NeoHookeBuffer{CV, KT, T}
     cv::CV
     K::KT
     r::Vector{T}
@@ -203,7 +203,7 @@ FESolvers.getjacobian(p::NeoHookeProblem) = p.buf.K
 function FESolvers.update_to_next_step!(p::NeoHookeProblem, time)
     p.buf.time .= time
     Ferrite.update!(p.def.ch, time)
-    apply!(p.buf.u, p.def.ch)
+    return apply!(p.buf.u, p.def.ch)
 end
 
 function FESolvers.update_problem!(p::NeoHookeProblem, Δu, _)
@@ -212,7 +212,7 @@ function FESolvers.update_problem!(p::NeoHookeProblem, Δu, _)
         p.buf.u .+= Δu
     end
     assemble_global!(p.buf.K, p.buf.r, p.def.dh, p.buf.cv, p.def.material, p.buf.u)
-    apply_zero!(p.buf.K, p.buf.r, p.def.ch)
+    return apply_zero!(p.buf.K, p.buf.r, p.def.ch)
 end
 
 FESolvers.calculate_convergence_measure(p::NeoHookeProblem, args...) = norm(FESolvers.getresidual(p)[free_dofs(p.def.ch)])
@@ -220,7 +220,7 @@ FESolvers.calculate_convergence_measure(p::NeoHookeProblem, args...) = norm(FESo
 function FESolvers.postprocess!(p::NeoHookeProblem, solver)
     push!(p.post.solutions, copy(p.buf.u))
     push!(p.post.times, p.buf.time[1])
-    println("Step $(length(p.post.times)): t = $(p.buf.time[1]), max|u| = $(maximum(abs, p.buf.u))")
+    return println("Step $(length(p.post.times)): t = $(p.buf.time[1]), max|u| = $(maximum(abs, p.buf.u))")
 end
 
 FESolvers.handle_converged!(::NeoHookeProblem) = nothing
@@ -257,27 +257,28 @@ problem = build_problem(def)
 
 
 ## =======================================
-### other type for the solver 
+### other type for the solver
 num_steps = 10
-Δt = 1/num_steps
+Δt = 1 / num_steps
 solver = QuasiStaticSolver(
     NewtonSolver(;
-        linsolver=BackslashSolver(),
-        linesearch=NoLineSearch(),
-        maxiter=30,
-        tolerance=1.0e-9,
-        update_jac_first=true,
-        update_jac_each=true),
-    FixedTimeStepper(; num_steps=num_steps, Δt= Δt, t_start=0.0)
+        linsolver = BackslashSolver(),
+        linesearch = NoLineSearch(),
+        maxiter = 30,
+        tolerance = 1.0e-9,
+        update_jac_first = true,
+        update_jac_each = true
+    ),
+    FixedTimeStepper(; num_steps = num_steps, Δt = Δt, t_start = 0.0)
 )
 solve_problem!(problem, solver)
 
-function solution(disp , numSteps)
-    UT = Vector{Vector{Point{3,Float64}}}(undef, numSteps)
+function solution(disp, numSteps)
+    UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps)
     UT_mag = Vector{Vector{Float64}}(undef, numSteps)
     ut_mag_max = zeros(Float64, numSteps)
 
-    dh = create_dofhandler(grid) 
+    dh = create_dofhandler(grid)
 
     for step in 1:numSteps
 
@@ -286,7 +287,7 @@ function solution(disp , numSteps)
         ux = getindex.(u_nodes, 1)
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
-        disp_points = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_points = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
         UT[step] = disp_points
         UT_mag[step] = norm.(disp_points)
         ut_mag_max[step] = maximum(UT_mag[step])
@@ -304,32 +305,34 @@ numInc = length(UT)
 # Create displaced mesh per step
 scale = 1.0
 VT = [V .+ scale .* UT[i] for i in 1:(numSteps)]
-incRange =  0:1:numInc-1
+incRange = 0:1:(numInc - 1)
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
+fig_disp = Figure(size = (1000, 600))
 stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title="Step: $stepStart")
+ax3 = AxisGeom(fig_disp[1, 1], title = "Step: $stepStart")
 
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
-hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
+hp = meshplot!(
+    ax3, Fb, VT[stepStart];
+    strokewidth = 2,
+    color = UT_mag[stepStart],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0, maximum(ut_mag_max))
+)
 
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
     i = stepIndex + 1   # shift to 1-based indexing

@@ -7,10 +7,10 @@ using ComodoFerrite
 using ComodoFerrite.Ferrite
 using BlockArrays
 using Tensors
-## GLMakie setting 
+## GLMakie setting
 GLMakie.closeall()
 
-## Mesh 
+## Mesh
 function create_grid(Lx, Ly, Lz, nx, ny, nz)
     left = Ferrite.Vec(0.0, 0.0, 0.0)
     right = Ferrite.Vec(Lx, Ly, Lz)
@@ -25,8 +25,8 @@ end
 function Ψ(F, p, mp::NeoHooke)
     μ = mp.μ
     Ic = tr(tdot(F))
-    J  = det(F)
-    return μ/2 * (Ic - 3) + p * (J - 1)
+    J = det(F)
+    return μ / 2 * (Ic - 3) + p * (J - 1)
 end
 
 function constitutive_driver(F, p, mp::NeoHooke)
@@ -49,53 +49,57 @@ function assemble_element!(Ke, fe, cell, cellvalues_u, cellvalues_p, mp, ue, pe)
     for qp in 1:getnquadpoints(cellvalues_u)
         dΩ = getdetJdV(cellvalues_u, qp)
         ∇u = function_gradient(cellvalues_u, qp, ue)
-        p  = function_value(cellvalues_p, qp, pe)
-        F  = one(∇u) + ∇u
+        p = function_value(cellvalues_p, qp, pe)
+        F = one(∇u) + ∇u
 
-        ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂p, _, ∂²Ψ∂F∂p =  constitutive_driver(F, p, mp)
+        ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂p, _, ∂²Ψ∂F∂p = constitutive_driver(F, p, mp)
 
         for i in 1:nu
             ∇δui = shape_gradient(cellvalues_u, qp, i)
-            fe[BlockIndex((ublock),(i))] += (∇δui ⊡ ∂Ψ∂F) * dΩ
+            fe[BlockIndex((ublock), (i))] += (∇δui ⊡ ∂Ψ∂F) * dΩ
 
             for j in 1:nu
                 ∇δuj = shape_gradient(cellvalues_u, qp, j)
-                Ke[BlockIndex((ublock,ublock),(i,j))] += ((∇δui ⊡ ∂²Ψ∂F²) ⊡ ∇δuj) * dΩ
+                Ke[BlockIndex((ublock, ublock), (i, j))] += ((∇δui ⊡ ∂²Ψ∂F²) ⊡ ∇δuj) * dΩ
             end
 
             for j in 1:np
                 δp = shape_value(cellvalues_p, qp, j)
-                Ke[BlockIndex((ublock,pblock),(i,j))] += (∂²Ψ∂F∂p ⊡ ∇δui) * δp * dΩ
+                Ke[BlockIndex((ublock, pblock), (i, j))] += (∂²Ψ∂F∂p ⊡ ∇δui) * δp * dΩ
             end
         end
 
         for i in 1:np
             δp = shape_value(cellvalues_p, qp, i)
-            fe[BlockIndex((pblock),(i))] += δp * ∂Ψ∂p * dΩ
+            fe[BlockIndex((pblock), (i))] += δp * ∂Ψ∂p * dΩ
 
             for j in 1:nu
                 ∇δuj = shape_gradient(cellvalues_u, qp, j)
-                Ke[BlockIndex((pblock,ublock),(i,j))] += (∇δuj ⊡ ∂²Ψ∂F∂p) * δp * dΩ
+                Ke[BlockIndex((pblock, ublock), (i, j))] += (∇δuj ⊡ ∂²Ψ∂F∂p) * δp * dΩ
             end
         end
     end
+    return
 end
 
 function assemble_global!(K, f, cellvalues_u, cellvalues_p, dh, mp, w)
     nu = getnbasefunctions(cellvalues_u)
     np = getnbasefunctions(cellvalues_p)
 
-    fe = BlockedArray(zeros(nu+np), [nu,np])
-    ke = BlockedArray(zeros(nu+np,nu+np), [nu,np], [nu,np])
+    fe = BlockedArray(zeros(nu + np), [nu, np])
+    ke = BlockedArray(zeros(nu + np, nu + np), [nu, np], [nu, np])
 
     assembler = start_assemble(K, f)
     for cell in CellIterator(dh)
         dofs = celldofs(cell)
-        assemble_element!(ke, fe, cell,
-                          cellvalues_u, cellvalues_p,
-                          mp, w[dofs[1:nu]], w[dofs[nu+1:end]])
+        assemble_element!(
+            ke, fe, cell,
+            cellvalues_u, cellvalues_p,
+            mp, w[dofs[1:nu]], w[dofs[(nu + 1):end]]
+        )
         assemble!(assembler, dofs, ke, fe)
     end
+    return
 end
 
 function create_dofhandler(grid, ipu, ipp)
@@ -148,7 +152,7 @@ function solve(E, ν, grid, displacement_prescribed, numSteps, interpolation_u, 
     nd = ndofs(dh)
 
 
-    UT = Vector{Vector{Point{3,Float64}}}(undef, numSteps + 1)
+    UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps + 1)
     UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(Float64, numSteps + 1)
 
@@ -162,7 +166,7 @@ function solve(E, ν, grid, displacement_prescribed, numSteps, interpolation_u, 
     f = zeros(nd)
 
     # --- Parameters ---
-    NEWTON_TOL = 1e-8
+    NEWTON_TOL = 1.0e-8
     NEWTON_MAXITER = 100
 
     Tf = displacement_prescribed
@@ -213,7 +217,7 @@ function solve(E, ν, grid, displacement_prescribed, numSteps, interpolation_u, 
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
 
-        disp_points = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_points = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
 
 
         UT[step] = disp_points
@@ -230,8 +234,8 @@ nx, ny, nz = 5, 5, 5
 grid = create_grid(Lx, Ly, Lz, nx, ny, nz)
 E, V, F, Fb, Cb = FerriteToComodo(grid)
 
-interpolation_u = Lagrange{RefTetrahedron,2}()^3
-interpolation_p = Lagrange{RefTetrahedron,1}()
+interpolation_u = Lagrange{RefTetrahedron, 2}()^3
+interpolation_p = Lagrange{RefTetrahedron, 1}()
 
 E = 10.0
 ν = 0.5
@@ -246,32 +250,34 @@ numInc = length(UT)
 # Create displaced mesh per step
 scale = 1.0
 VT = [V .+ scale .* UT[i] for i in 1:(numSteps + 1)]
-incRange =  0:1:numInc-1
+incRange = 0:1:(numInc - 1)
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
+fig_disp = Figure(size = (1000, 600))
 stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title="Step: $stepStart")
+ax3 = AxisGeom(fig_disp[1, 1], title = "Step: $stepStart")
 
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
-hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
+hp = meshplot!(
+    ax3, Fb, VT[stepStart];
+    strokewidth = 2,
+    color = UT_mag[stepStart],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0, maximum(ut_mag_max))
+)
 
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
     i = stepIndex + 1   # shift to 1-based indexing

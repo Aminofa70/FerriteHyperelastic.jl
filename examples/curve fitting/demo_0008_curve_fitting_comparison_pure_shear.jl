@@ -10,7 +10,7 @@ data_type = "shear"
 modelType = "neo-hookean"
 Sexp = P_exp
 strainExp = λ_exp .- 1
-# Get material constants 
+# Get material constants
 mat_cons_solver = solver_constants_hyper(data_type, modelType, strainExp, Sexp)
 C1 = mat_cons_solver[1]
 # Generate strain values for smooth curve
@@ -19,15 +19,15 @@ C1 = mat_cons_solver[1]
 λ1 = @. ϵ + 1
 λ = λ1
 λ2 = @. 1 / sqrt(λ)
-λ3 = λ2   
+λ3 = λ2
 # neo-Hookean stress (uniaxial nominal stress)
 P_model = @. 2 * C1 * (λ - λ^-3)
 # Plot results
 GLMakie.closeall()
-fig = Figure(size=(800, 600), fontsize=26)
-ax = Axis(fig[1, 1], xlabel= L"\mathscr{ε}", ylabel=L"P",  xgridvisible=false, ygridvisible=false)
-lines!(ax, ϵ, P_model, color = :black, label="Fit, neo-Hookean", linewidth = 3)
-scatter!(ax, strainExp, P_exp, marker=:diamond, color=:red, label="Equibiaxial experiment", markersize = 16)
+fig = Figure(size = (800, 600), fontsize = 26)
+ax = Axis(fig[1, 1], xlabel = L"\mathscr{ε}", ylabel = L"P", xgridvisible = false, ygridvisible = false)
+lines!(ax, ϵ, P_model, color = :black, label = "Fit, neo-Hookean", linewidth = 3)
+scatter!(ax, strainExp, P_exp, marker = :diamond, color = :red, label = "Equibiaxial experiment", markersize = 16)
 #############################################################################
 # Read experimental data (uniaxial test)
 λ_exp, P_exp = read_data!(Treloar_1944, pure_shear)
@@ -51,7 +51,7 @@ strainExp = λ_exp .- 1
 # λ1 = @. ϵ + 1
 # λ = λ1
 # λ2 = @. 1 / sqrt(λ)
-# λ3 = λ2   
+# λ3 = λ2
 # # Mooney-Rivlin nominal stress formula for uniaxial tension:
 # P_model = @. 2 * (C1*λ + C2/λ)
 # lines!(ax, ϵ, P_model, color = :blue, label="Fit, Mooney-Rivlin", linestyle = :dashdotdot, linewidth = 3)
@@ -78,13 +78,13 @@ C1, C2, C3 = mat_cons_solver[1], mat_cons_solver[2], mat_cons_solver[3]
 λ1 = @. ϵ + 1
 λ = λ1
 λ2 = @. 1 / sqrt(λ)
-λ3 = λ2   
+λ3 = λ2
 
 # CORRECTED FOR PURE SHEAR
 I1 = @. λ^2 + 1 + λ^(-2)          # First invariant for Pure Shear
-P_model = @. 2 * (λ - λ^(-3)) * (C1 + 2*C2*(I1 - 3) + 3*C3*(I1 - 3)^2)
+P_model = @. 2 * (λ - λ^(-3)) * (C1 + 2 * C2 * (I1 - 3) + 3 * C3 * (I1 - 3)^2)
 
-lines!(ax, ϵ, P_model, color = :green, label="Fit, Yeoh", linestyle = :dot, linewidth = 3)
+lines!(ax, ϵ, P_model, color = :green, label = "Fit, Yeoh", linestyle = :dot, linewidth = 3)
 #############################################################################
 # Read experimental data (uniaxial test)
 λ_exp, P_exp = read_data!(Treloar_1944, pure_shear)
@@ -114,8 +114,7 @@ strainExp = λ_exp .- 1
 #             (2*μ3/α3)*(λ^α3 - 1)/λ
 
 
-
 # lines!(ax, ϵ, P_model, color=:purple, label="Fit, Ogden (3-term)")
-axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray,  linewidth = 3)
+axislegend(ax, position = :lt, backgroundcolor = (:white, 0.7), framecolor = :gray, linewidth = 3)
 
 display(fig)

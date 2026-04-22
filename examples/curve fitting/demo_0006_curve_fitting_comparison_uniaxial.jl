@@ -10,7 +10,7 @@ data_type = "uniaxial"
 modelType = "neo-hookean"
 Sexp = P_exp
 strainExp = λ_exp .- 1
-# Get material constants 
+# Get material constants
 mat_cons_solver = solver_constants_hyper(data_type, modelType, strainExp, Sexp)
 C1 = mat_cons_solver[1]
 # Generate strain values for smooth curve
@@ -19,15 +19,15 @@ C1 = mat_cons_solver[1]
 λ1 = @. ϵ + 1
 λ = λ1
 λ2 = @. 1 / sqrt(λ)
-λ3 = λ2   
+λ3 = λ2
 # neo-Hookean stress (uniaxial nominal stress)
 P_model = @. 2 * C1 * (λ - 1 / λ^2)
 # Plot results
 GLMakie.closeall()
-fig = Figure(size=(800, 600), fontsize=26)
-ax = Axis(fig[1, 1], xlabel= L"\mathscr{ε}", ylabel=L"P",  xgridvisible=false, ygridvisible=false)
-scatter!(ax, strainExp, P_exp, marker=:diamond, color=:red, label="Uniaxial experiment", markersize = 16)
-lines!(ax, ϵ, P_model, color = :black, label="Fit, neo-Hookean", linewidth = 3)
+fig = Figure(size = (800, 600), fontsize = 26)
+ax = Axis(fig[1, 1], xlabel = L"\mathscr{ε}", ylabel = L"P", xgridvisible = false, ygridvisible = false)
+scatter!(ax, strainExp, P_exp, marker = :diamond, color = :red, label = "Uniaxial experiment", markersize = 16)
+lines!(ax, ϵ, P_model, color = :black, label = "Fit, neo-Hookean", linewidth = 3)
 #############################################################################
 # Read experimental data (uniaxial test)
 λ_exp, P_exp = read_data!(Treloar_1944, uniaxial)
@@ -51,10 +51,10 @@ C1, C2 = mat_cons_solver[1], mat_cons_solver[2]
 λ1 = @. ϵ + 1
 λ = λ1
 λ2 = @. 1 / sqrt(λ)
-λ3 = λ2   
+λ3 = λ2
 # Mooney-Rivlin nominal stress formula for uniaxial tension:
 P_model = @. 2 * (λ - 1 / λ^2) * (C1 + C2 / λ)
-lines!(ax, ϵ, P_model, color = :blue, label="Fit, Mooney-Rivlin", linestyle = :dashdotdot, linewidth = 3)
+lines!(ax, ϵ, P_model, color = :blue, label = "Fit, Mooney-Rivlin", linestyle = :dashdotdot, linewidth = 3)
 #############################################################################
 # Read experimental data (uniaxial test)
 λ_exp, P_exp = read_data!(Treloar_1944, uniaxial)
@@ -78,14 +78,14 @@ C1, C2, C3 = mat_cons_solver[1], mat_cons_solver[2], mat_cons_solver[3]
 λ1 = @. ϵ + 1
 λ = λ1
 λ2 = @. 1 / sqrt(λ)
-λ3 = λ2   
+λ3 = λ2
 
 # Calculate first invariant I1 for each λ
 I1 = @. λ^2 + 2 / λ
 
 # Yeoh nominal stress formula for uniaxial tension:
 P_model = @. 2 * (λ - 1 / λ^2) * (C1 + 2 * C2 * (I1 - 3) + 3 * C3 * (I1 - 3)^2)
-lines!(ax, ϵ, P_model, color = :green, label="Fit, Yeoh", linestyle = :dot, linewidth = 3)
+lines!(ax, ϵ, P_model, color = :green, label = "Fit, Yeoh", linestyle = :dot, linewidth = 3)
 #############################################################################
 # Read experimental data (uniaxial test)
 λ_exp, P_exp = read_data!(Treloar_1944, uniaxial)
@@ -110,16 +110,15 @@ mat_cons_solver = solver_constants_hyper(data_type, modelType, strainExp, Sexp)
 λ = @. ϵ + 1
 
 # Ogden nominal stress (uniaxial, incompressible)
-P_model = @. (2*μ1/α1)*(λ^(α1-1) - λ^(-1 - α1/2)) +
-            (2*μ2/α2)*(λ^(α2-1) - λ^(-1 - α2/2)) +
-            (2*μ3/α3)*(λ^(α3-1) - λ^(-1 - α3/2))
+P_model = @. (2 * μ1 / α1) * (λ^(α1 - 1) - λ^(-1 - α1 / 2)) +
+    (2 * μ2 / α2) * (λ^(α2 - 1) - λ^(-1 - α2 / 2)) +
+    (2 * μ3 / α3) * (λ^(α3 - 1) - λ^(-1 - α3 / 2))
 
 
-
-lines!(ax, ϵ, P_model, color=:purple, label="Fit, Ogden (3-term)")
-axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray,  linewidth = 3)
+lines!(ax, ϵ, P_model, color = :purple, label = "Fit, Ogden (3-term)")
+axislegend(ax, position = :lt, backgroundcolor = (:white, 0.7), framecolor = :gray, linewidth = 3)
 
 display(fig)
 
 
-#save("uniaxial.png", fig)  # for save the plot 
+#save("uniaxial.png", fig)  # for save the plot

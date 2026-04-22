@@ -1,4 +1,3 @@
-
 using FESolvers
 using Comodo
 using Comodo.GLMakie
@@ -16,7 +15,7 @@ GLMakie.closeall()
 
 
 boxDim = [10, 10, 10]
-boxEl  = [5, 5, 5]
+boxEl = [5, 5, 5]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 grid = ComodoToFerrite(E, V)
 
@@ -48,10 +47,10 @@ struct MooneyRivlin
 end
 
 function create_values()
-    ipu = Lagrange{RefHexahedron,1}()^3
-    ipp = DiscontinuousLagrange{RefHexahedron,0}()
-    ipΘ = DiscontinuousLagrange{RefHexahedron,0}()
-    qr  = QuadratureRule{RefHexahedron}(2)
+    ipu = Lagrange{RefHexahedron, 1}()^3
+    ipp = DiscontinuousLagrange{RefHexahedron, 0}()
+    ipΘ = DiscontinuousLagrange{RefHexahedron, 0}()
+    qr = QuadratureRule{RefHexahedron}(2)
     cvu = CellValues(qr, ipu)
     cvp = CellValues(qr, ipp)
     cvΘ = CellValues(qr, ipΘ)
@@ -61,9 +60,9 @@ end
 # DOF HANDLER — three fields (u, p, Θ)
 function create_dofhandler(grid)
     dh = DofHandler(grid)
-    add!(dh, :u, Lagrange{RefHexahedron,1}()^3)
-    add!(dh, :p, DiscontinuousLagrange{RefHexahedron,0}())
-    add!(dh, :Θ, DiscontinuousLagrange{RefHexahedron,0}())
+    add!(dh, :u, Lagrange{RefHexahedron, 1}()^3)
+    add!(dh, :p, DiscontinuousLagrange{RefHexahedron, 0}())
+    add!(dh, :Θ, DiscontinuousLagrange{RefHexahedron, 0}())
     close!(dh)
     return dh
 end
@@ -71,9 +70,9 @@ end
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
     add!(ch, Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0], [3]))
-    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "front"),  (x, t) -> [0.0], [2]))
-    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "left"),   (x, t) -> [0.0], [1]))
-    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "top"),    (x, t) -> [max_displacement * t], [3]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "front"), (x, t) -> [0.0], [2]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "left"), (x, t) -> [0.0], [1]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "top"), (x, t) -> [max_displacement * t], [3]))
     Ferrite.close!(ch)
     Ferrite.update!(ch, 0.0)
     return ch
@@ -85,7 +84,7 @@ function Ψ(F_arg, Θ, p_field, mp::MooneyRivlin)
     J = det(F_arg)
 
     # Isochoric deformation gradient (eq. 2.28)
-    F̃ = J^(-1/3) * F_arg
+    F̃ = J^(-1 / 3) * F_arg
     C̃ = tdot(F̃)
 
     # Isochoric invariants
@@ -109,14 +108,16 @@ function constitutive_driver(F_arg, Θ, p_field, mp::MooneyRivlin)
 
     K = mp.K
     lnΘ = log(Θ)
-    ∂Ψ∂Θ   = K * lnΘ / Θ - p_field
+    ∂Ψ∂Θ = K * lnΘ / Θ - p_field
     ∂²Ψ∂Θ² = K * (1.0 - lnΘ) / (Θ^2)
 
     return ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂Θ, ∂²Ψ∂Θ²
 end
 
-function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
-                           mp, ue, pe, Θe)
+function assemble_element!(
+        Ke, fe, cell, cvu, cvp, cvΘ,
+        mp, ue, pe, Θe
+    )
     reinit!(cvu, cell)
     reinit!(cvp, cell)
     reinit!(cvΘ, cell)
@@ -131,66 +132,69 @@ function assemble_element!(Ke, fe, cell, cvu, cvp, cvΘ,
     for qp in 1:getnquadpoints(cvu)
         dΩ = getdetJdV(cvu, qp)
 
-        ∇u   = function_gradient(cvu, qp, ue)
+        ∇u = function_gradient(cvu, qp, ue)
         F_qp = one(∇u) + ∇u
-        p̂    = function_value(cvp, qp, pe)
-        Θ̂    = function_value(cvΘ, qp, Θe)
+        p̂ = function_value(cvp, qp, pe)
+        Θ̂ = function_value(cvΘ, qp, Θe)
 
         ∂Ψ∂F, ∂²Ψ∂F², ∂Ψ∂Θ, ∂²Ψ∂Θ² =
             constitutive_driver(F_qp, Θ̂, p̂, mp)
 
         Finv = inv(F_qp)
-        J    = det(F_qp)
+        J = det(F_qp)
 
-        # Block 1 — u-equation 
+        # Block 1 — u-equation
         for i in 1:nu
             ∇Nᵢ = shape_gradient(cvu, qp, i)
-            fe[BlockIndex((1,),(i,))] += (∇Nᵢ ⊡ ∂Ψ∂F) * dΩ
+            fe[BlockIndex((1,), (i,))] += (∇Nᵢ ⊡ ∂Ψ∂F) * dΩ
 
             for j in 1:nu
                 ∇Nⱼ = shape_gradient(cvu, qp, j)
-                Ke[BlockIndex((1,1),(i,j))] += (∇Nᵢ ⊡ ∂²Ψ∂F² ⊡ ∇Nⱼ) * dΩ
+                Ke[BlockIndex((1, 1), (i, j))] += (∇Nᵢ ⊡ ∂²Ψ∂F² ⊡ ∇Nⱼ) * dΩ
             end
 
             δJ_i = J * tr(Finv ⋅ ∇Nᵢ)
             for j in 1:np
                 Nⱼᵖ = shape_value(cvp, qp, j)
-                Ke[BlockIndex((1,2),(i,j))] += δJ_i * Nⱼᵖ * dΩ
-                Ke[BlockIndex((2,1),(j,i))] += δJ_i * Nⱼᵖ * dΩ
+                Ke[BlockIndex((1, 2), (i, j))] += δJ_i * Nⱼᵖ * dΩ
+                Ke[BlockIndex((2, 1), (j, i))] += δJ_i * Nⱼᵖ * dΩ
             end
         end
 
-        # Block 2 — p-equation 
+        # Block 2 — p-equation
         for i in 1:np
             Nᵢᵖ = shape_value(cvp, qp, i)
-            fe[BlockIndex((2,),(i,))] += Nᵢᵖ * (J - Θ̂) * dΩ
+            fe[BlockIndex((2,), (i,))] += Nᵢᵖ * (J - Θ̂) * dΩ
 
             for j in 1:nΘ
                 NⱼΘ = shape_value(cvΘ, qp, j)
-                Ke[BlockIndex((2,3),(i,j))] -= Nᵢᵖ * NⱼΘ * dΩ
+                Ke[BlockIndex((2, 3), (i, j))] -= Nᵢᵖ * NⱼΘ * dΩ
             end
         end
 
-        # Block 3 — Θ-equation 
+        # Block 3 — Θ-equation
         for i in 1:nΘ
             NᵢΘ = shape_value(cvΘ, qp, i)
-            fe[BlockIndex((3,),(i,))] += NᵢΘ * ∂Ψ∂Θ * dΩ
+            fe[BlockIndex((3,), (i,))] += NᵢΘ * ∂Ψ∂Θ * dΩ
 
             for j in 1:nΘ
                 NⱼΘ = shape_value(cvΘ, qp, j)
-                Ke[BlockIndex((3,3),(i,j))] += NᵢΘ * ∂²Ψ∂Θ² * NⱼΘ * dΩ
+                Ke[BlockIndex((3, 3), (i, j))] += NᵢΘ * ∂²Ψ∂Θ² * NⱼΘ * dΩ
             end
 
             for j in 1:np
                 Nⱼᵖ = shape_value(cvp, qp, j)
-                Ke[BlockIndex((3,2),(i,j))] -= NᵢΘ * Nⱼᵖ * dΩ
+                Ke[BlockIndex((3, 2), (i, j))] -= NᵢΘ * Nⱼᵖ * dΩ
             end
         end
     end
+    return
 end
 
-function assemble_global!(K::SparseMatrixCSC, f,
-                          cvu, cvp, cvΘ, dh, mp, w)
+function assemble_global!(
+        K::SparseMatrixCSC, f,
+        cvu, cvp, cvΘ, dh, mp, w
+    )
     nu = getnbasefunctions(cvu)
     np = getnbasefunctions(cvp)
     nΘ = getnbasefunctions(cvΘ)
@@ -206,8 +210,8 @@ function assemble_global!(K::SparseMatrixCSC, f,
         @assert length(global_dofs) == ntot
 
         ue = w[global_dofs[1:nu]]
-        pe = w[global_dofs[(nu+1):(nu+np)]]
-        Θe = w[global_dofs[(nu+np+1):end]]
+        pe = w[global_dofs[(nu + 1):(nu + np)]]
+        Θe = w[global_dofs[(nu + np + 1):end]]
 
         assemble_element!(ke, fe, cell, cvu, cvp, cvΘ, mp, ue, pe, Θe)
         assemble!(assembler, global_dofs, ke, fe)
@@ -223,7 +227,7 @@ end
 SimoTaylorPost() = SimoTaylorPost(Vector{Float64}[], Float64[])
 
 # --- Model definition ---
-struct SimoTaylorModel{DH,CH,M}
+struct SimoTaylorModel{DH, CH, M}
     dh::DH
     ch::CH
     material::M
@@ -236,7 +240,7 @@ function SimoTaylorModel(mp::MooneyRivlin)
 end
 
 # --- Buffer (working arrays) ---
-struct SimoTaylorBuffer{CVU,CVP,CVΘ,KT,T}
+struct SimoTaylorBuffer{CVU, CVP, CVΘ, KT, T}
     cvu::CVU
     cvp::CVP
     cvΘ::CVΘ
@@ -266,14 +270,14 @@ function build_buffer(model::SimoTaylorModel)
 end
 
 # --- Problem ---
-struct SimoTaylorProblem{PD,PB,PP}
+struct SimoTaylorProblem{PD, PB, PP}
     def::PD
     buf::PB
     post::PP
 end
 
 function build_problem(def::SimoTaylorModel)
-    SimoTaylorProblem(def, build_buffer(def), SimoTaylorPost())
+    return SimoTaylorProblem(def, build_buffer(def), SimoTaylorPost())
 end
 
 
@@ -284,7 +288,7 @@ FESolvers.getjacobian(p::SimoTaylorProblem) = p.buf.K
 function FESolvers.update_to_next_step!(p::SimoTaylorProblem, time)
     p.buf.time .= time
     Ferrite.update!(p.def.ch, time)
-    apply!(p.buf.u, p.def.ch)
+    return apply!(p.buf.u, p.def.ch)
 end
 
 function FESolvers.update_problem!(p::SimoTaylorProblem, Δu, _)
@@ -292,24 +296,25 @@ function FESolvers.update_problem!(p::SimoTaylorProblem, Δu, _)
         apply_zero!(Δu, p.def.ch)
         p.buf.u .+= Δu
     end
-    assemble_global!(p.buf.K, p.buf.r,
-                     p.buf.cvu, p.buf.cvp, p.buf.cvΘ,
-                     p.def.dh, p.def.material, p.buf.u)
-    apply_zero!(p.buf.K, p.buf.r, p.def.ch)
+    assemble_global!(
+        p.buf.K, p.buf.r,
+        p.buf.cvu, p.buf.cvp, p.buf.cvΘ,
+        p.def.dh, p.def.material, p.buf.u
+    )
+    return apply_zero!(p.buf.K, p.buf.r, p.def.ch)
 end
 
 function FESolvers.calculate_convergence_measure(p::SimoTaylorProblem, args...)
-    norm(FESolvers.getresidual(p)[free_dofs(p.def.ch)])
+    return norm(FESolvers.getresidual(p)[free_dofs(p.def.ch)])
 end
 
 function FESolvers.postprocess!(p::SimoTaylorProblem, solver)
     push!(p.post.solutions, copy(p.buf.u))
     push!(p.post.times, p.buf.time[1])
-    println("Time step $(length(p.post.times)) completed, t = $(p.buf.time[1])")
+    return println("Time step $(length(p.post.times)) completed, t = $(p.buf.time[1])")
 end
 
 FESolvers.handle_converged!(::SimoTaylorProblem) = nothing
-
 
 
 mp = MooneyRivlin(c1_mod, c2_mod, K_mod)
@@ -317,11 +322,12 @@ def = SimoTaylorModel(mp)
 problem = build_problem(def)
 
 solver = QuasiStaticSolver(
-    NewtonSolver(; tolerance=1e-6, maxiter=30),
-    AdaptiveTimeStepper(0.05, 1.0;
-        t_start=0.0,
-        Δt_min=0.01,
-        Δt_max=0.2
+    NewtonSolver(; tolerance = 1.0e-6, maxiter = 30),
+    AdaptiveTimeStepper(
+        0.05, 1.0;
+        t_start = 0.0,
+        Δt_min = 0.01,
+        Δt_max = 0.2
     )
 )
 
@@ -333,8 +339,8 @@ function solution(prob, grid)
     numSteps = length(prob.post.times)
     dh = create_dofhandler(grid)
 
-    UT       = Vector{Vector{Point{3,Float64}}}(undef, numSteps)
-    UT_mag   = Vector{Vector{Float64}}(undef, numSteps)
+    UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps)
+    UT_mag = Vector{Vector{Float64}}(undef, numSteps)
     ut_mag_max = zeros(Float64, numSteps)
 
     for step in 1:numSteps
@@ -343,7 +349,7 @@ function solution(prob, grid)
         ux = getindex.(u_nodes, 1)
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
-        disp_points = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_points = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
         UT[step] = disp_points
         UT_mag[step] = norm.(disp_points)
         ut_mag_max[step] = maximum(UT_mag[step])
@@ -359,32 +365,34 @@ numInc = length(UT)
 # Create displaced mesh per step
 scale = 1.0
 VT = [V .+ scale .* UT[i] for i in 1:(numSteps)]
-incRange =  0:1:numInc-1
+incRange = 0:1:(numInc - 1)
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
+fig_disp = Figure(size = (1000, 600))
 stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title="Step: $stepStart")
+ax3 = AxisGeom(fig_disp[1, 1], title = "Step: $stepStart")
 
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
-hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
+hp = meshplot!(
+    ax3, Fb, VT[stepStart];
+    strokewidth = 2,
+    color = UT_mag[stepStart],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0, maximum(ut_mag_max))
+)
 
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
     i = stepIndex + 1   # shift to 1-based indexing

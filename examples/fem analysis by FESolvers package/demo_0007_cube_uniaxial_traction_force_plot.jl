@@ -15,37 +15,37 @@ GLMakie.closeall()
 sampleSize = 10.0
 pointSpacing = 2.0
 strainApplied = 0.5 # Equivalent linear strain
-loadingOption ="compression" # "tension" or "compression"
-# Creating a hexahedral mesh for a cube 
-boxDim = sampleSize.*[1,1,1] # Dimensionsions for the box in each direction
-boxEl = ceil.(Int64,boxDim./pointSpacing) # Number of elements to use in each direction 
-E,V,F,Fb,Cb = hexbox(boxDim,boxEl)
+loadingOption = "compression" # "tension" or "compression"
+# Creating a hexahedral mesh for a cube
+boxDim = sampleSize .* [1, 1, 1] # Dimensionsions for the box in each direction
+boxEl = ceil.(Int64, boxDim ./ pointSpacing) # Number of elements to use in each direction
+E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 
 grid = ComodoToFerrite(E, V)
 
-Fb_bottom = Fb[Cb.==1]
+Fb_bottom = Fb[Cb .== 1]
 addface!(grid, "bottom", Fb_bottom)
 
-Fb_front = Fb[Cb.==3]
+Fb_front = Fb[Cb .== 3]
 addface!(grid, "front", Fb_front)
 
-Fb_top = Fb[Cb.==2]
+Fb_top = Fb[Cb .== 2]
 addface!(grid, "top", Fb_top)
 
-Fb_left = Fb[Cb.==6]
+Fb_left = Fb[Cb .== 6]
 addface!(grid, "left", Fb_left)
 
-if loadingOption=="tension"
-    displacement_prescribed = strainApplied*sampleSize
-elseif loadingOption=="compression"
-    displacement_prescribed = -strainApplied*sampleSize
+if loadingOption == "tension"
+    displacement_prescribed = strainApplied * sampleSize
+elseif loadingOption == "compression"
+    displacement_prescribed = -strainApplied * sampleSize
 end
 
 ## Finite Element Values
 function create_values()
     order = 1
     dim = 3
-    ip = Lagrange{RefHexahedron,order}()^dim
+    ip = Lagrange{RefHexahedron, order}()^dim
     qr = QuadratureRule{RefHexahedron}(2)
     qr_face = FacetQuadratureRule{RefHexahedron}(1)
     cell_values = CellValues(qr, ip)
@@ -56,7 +56,7 @@ end
 ## Create Degrees of freedom
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
-    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron,1}()^3)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron, 1}()^3)
     Ferrite.close!(dh)
     return dh
 end
@@ -122,6 +122,7 @@ function assemble_element!(ke, ge, cell, cv, mp, ue)
             end
         end
     end
+    return
 end
 
 function assemble_global!(K, g, dh, cv, mp, u)
@@ -213,13 +214,13 @@ end
 NeoHookePost() = NeoHookePost(Vector{Float64}[], Float64[], Vector{Float64}[])
 
 ## Problem struct
-struct NeoHookeProblem{PD,PB,PP}
+struct NeoHookeProblem{PD, PB, PP}
     def::PD
     buf::PB
     post::PP
 end
 
-struct NeoHookeModel{DH,CH,M}
+struct NeoHookeModel{DH, CH, M}
     dh::DH
     ch::CH
     material::M
@@ -231,7 +232,7 @@ function NeoHookeModel()
     return NeoHookeModel(dh, ch, mp)
 end
 
-struct NeoHookeBuffer{CV,KT,T}
+struct NeoHookeBuffer{CV, KT, T}
     cv::CV
     K::KT
     r::Vector{T}
@@ -257,7 +258,7 @@ FESolvers.getjacobian(p::NeoHookeProblem) = p.buf.K
 function FESolvers.update_to_next_step!(p::NeoHookeProblem, time)
     p.buf.time .= time
     Ferrite.update!(p.def.ch, time)
-    apply!(p.buf.u, p.def.ch)
+    return apply!(p.buf.u, p.def.ch)
 end
 
 function FESolvers.update_problem!(p::NeoHookeProblem, Δu, _)
@@ -266,7 +267,7 @@ function FESolvers.update_problem!(p::NeoHookeProblem, Δu, _)
         p.buf.u .+= Δu
     end
     assemble_global!(p.buf.K, p.buf.r, p.def.dh, p.buf.cv, p.def.material, p.buf.u)
-    apply_zero!(p.buf.K, p.buf.r, p.def.ch)
+    return apply_zero!(p.buf.K, p.buf.r, p.def.ch)
 end
 
 FESolvers.calculate_convergence_measure(p::NeoHookeProblem, args...) = norm(FESolvers.getresidual(p)[free_dofs(p.def.ch)])
@@ -277,7 +278,7 @@ function FESolvers.postprocess!(p::NeoHookeProblem, solver)
 
     # Compute f_int (general formulation)
     f_int = assemble_internal_forces(p.def.dh, p.buf.cv, p.def.material, p.buf.u)
-    push!(p.post.reactions, copy(f_int))
+    return push!(p.post.reactions, copy(f_int))
 end
 
 FESolvers.handle_converged!(::NeoHookeProblem) = nothing
@@ -287,8 +288,8 @@ def = NeoHookeModel()
 problem = build_problem(def)
 
 solver = QuasiStaticSolver(
-    NewtonSolver(; tolerance=1e-6, maxiter=30),
-    FixedTimeStepper(; num_steps=10, Δt=0.1, t_start=0.0)
+    NewtonSolver(; tolerance = 1.0e-6, maxiter = 30),
+    FixedTimeStepper(; num_steps = 10, Δt = 0.1, t_start = 0.0)
 )
 
 solve_problem!(problem, solver)
@@ -297,7 +298,7 @@ solve_problem!(problem, solver)
 ## Post-processing: displacements
 #########################################################
 function solution(disp, numSteps)
-    UT = Vector{Vector{Point{3,Float64}}}(undef, numSteps)
+    UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps)
     UT_mag = Vector{Vector{Float64}}(undef, numSteps)
     ut_mag_max = zeros(Float64, numSteps)
 
@@ -309,7 +310,7 @@ function solution(disp, numSteps)
         ux = getindex.(u_nodes, 1)
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
-        disp_points = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_points = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
         UT[step] = disp_points
         UT_mag[step] = norm.(disp_points)
         ut_mag_max[step] = maximum(UT_mag[step])
@@ -342,47 +343,59 @@ end
 numInc = length(UT)   # = numSteps + 1
 
 scale = 1.0
-VT = [V .+ scale .* UT[i] for i in 1:numInc]   # 
+VT = [V .+ scale .* UT[i] for i in 1:numInc]   #
 
 min_p = minp([minp(Vi) for Vi in VT])
 max_p = maxp([maxp(Vi) for Vi in VT])
 
-incRange = 0:numInc-1   # 0 → 10
+incRange = 0:(numInc - 1)   # 0 → 10
 
-fig = Figure(size=(1600, 800))
-stepStart = 1 
+fig = Figure(size = (1600, 800))
+stepStart = 1
 
-ax1 = AxisGeom(fig[1, 1], title="Step: $stepStart",
-    limits=(min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3]))
+ax1 = AxisGeom(
+    fig[1, 1], title = "Step: $stepStart",
+    limits = (min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3])
+)
 
-hp1 = meshplot!(ax1, Fb, VT[stepStart + 1];   # shift index
-    strokewidth=2,
-    color=UT_mag[stepStart + 1],
-    transparency=false,
-    colormap=Reverse(:Spectral),
-    colorrange=(0.0, maximum(ut_mag_max)))
+hp1 = meshplot!(
+    ax1, Fb, VT[stepStart + 1];   # shift index
+    strokewidth = 2,
+    color = UT_mag[stepStart + 1],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0.0, maximum(ut_mag_max))
+)
 
-Colorbar(fig[1, 2], hp1.plots[1], label="Displacement magnitude [mm]")
+Colorbar(fig[1, 2], hp1.plots[1], label = "Displacement magnitude [mm]")
 
-ax3 = Axis(fig[1, 3], title="Step: $stepStart", aspect=AxisAspect(1),
-    xlabel="Time [s]", ylabel="Force [N]")
+ax3 = Axis(
+    fig[1, 3], title = "Step: $stepStart", aspect = AxisAspect(1),
+    xlabel = "Time [s]", ylabel = "Force [N]"
+)
 
-lines!(ax3, time_curve, Fz_curve, color=:red, linewidth=3)
+lines!(ax3, time_curve, Fz_curve, color = :red, linewidth = 3)
 
-hp3 = scatter!(ax3,
-    Point{2,Float64}(time_curve[stepStart + 1], Fz_curve[stepStart + 1]),
-    markersize=15, color=:red)
+hp3 = scatter!(
+    ax3,
+    Point{2, Float64}(time_curve[stepStart + 1], Fz_curve[stepStart + 1]),
+    markersize = 15, color = :red
+)
 
-ax4 = Axis(fig[1, 4], title="Step: $stepStart", aspect=AxisAspect(1),
-    xlabel="Max displacement [mm]", ylabel="Force [N]")
+ax4 = Axis(
+    fig[1, 4], title = "Step: $stepStart", aspect = AxisAspect(1),
+    xlabel = "Max displacement [mm]", ylabel = "Force [N]"
+)
 
-lines!(ax4, ut_mag_max, Fz_curve, color=:blue, linewidth=3)
+lines!(ax4, ut_mag_max, Fz_curve, color = :blue, linewidth = 3)
 
-hp4 = scatter!(ax4,
-    Point{2,Float64}(ut_mag_max[stepStart + 1], Fz_curve[stepStart + 1]),
-    markersize=15, color=:blue)
+hp4 = scatter!(
+    ax4,
+    Point{2, Float64}(ut_mag_max[stepStart + 1], Fz_curve[stepStart + 1]),
+    markersize = 15, color = :blue
+)
 
-hSlider = Slider(fig[2, :], range=incRange, startvalue=stepStart, linewidth=30)
+hSlider = Slider(fig[2, :], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
     i = stepIndex + 1   # convert 0-based → 1-based
@@ -390,8 +403,8 @@ on(hSlider.value) do stepIndex
     hp1[1] = GeometryBasics.Mesh(VT[i], F)
     hp1.color = UT_mag[i]
 
-    hp3[1] = Point{2,Float64}(time_curve[i], Fz_curve[i])
-    hp4[1] = Point{2,Float64}(ut_mag_max[i], Fz_curve[i])
+    hp3[1] = Point{2, Float64}(time_curve[i], Fz_curve[i])
+    hp4[1] = Point{2, Float64}(ut_mag_max[i], Fz_curve[i])
 
     ax1.title = "Step: $stepIndex"
     ax3.title = "Step: $stepIndex"

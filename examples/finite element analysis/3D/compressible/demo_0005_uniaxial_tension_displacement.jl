@@ -14,42 +14,42 @@ GLMakie.closeall()
 
 pointSpacing = 2.0
 strainApplied = 0.5 # Equivalent linear strain
-loadingOption ="tension" # "tension" or "compression"
+loadingOption = "tension" # "tension" or "compression"
 
 E_youngs = 1
-ν =0.4
+ν = 0.4
 
-###### 
-# Creating a hexahedral mesh for a cube 
+######
+# Creating a hexahedral mesh for a cube
 boxDim = [5.0, 20.0, 60.0] # Dimensionsions for the box in each direction
-boxEl = ceil.(Int64,boxDim./pointSpacing) # Number of elements to use in each direction 
-E,V,F,Fb,Cb = hexbox(boxDim,boxEl)
+boxEl = ceil.(Int64, boxDim ./ pointSpacing) # Number of elements to use in each direction
+E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 
 grid = ComodoToFerrite(E, V)
-Fb_bottom = Fb[Cb.==1]
-addface!(grid , "bottom", Fb_bottom) 
+Fb_bottom = Fb[Cb .== 1]
+addface!(grid, "bottom", Fb_bottom)
 
-Fb_front = Fb[Cb.==3]  
-addface!(grid , "front", Fb_front) 
+Fb_front = Fb[Cb .== 3]
+addface!(grid, "front", Fb_front)
 
-Fb_top = Fb[Cb.==2] 
-addface!(grid , "top", Fb_top)   
+Fb_top = Fb[Cb .== 2]
+addface!(grid, "top", Fb_top)
 
-Fb_left = Fb[Cb.==6]
-addface!(grid , "left", Fb_left)   
+Fb_left = Fb[Cb .== 6]
+addface!(grid, "left", Fb_left)
 
 # Defining displacement of the top surface in terms of x, y, and z components
-if loadingOption=="tension"
-    displacement_prescribed = strainApplied*boxDim[3]
-elseif loadingOption=="compression"
-    displacement_prescribed = -strainApplied*boxDim[3]
+if loadingOption == "tension"
+    displacement_prescribed = strainApplied * boxDim[3]
+elseif loadingOption == "compression"
+    displacement_prescribed = -strainApplied * boxDim[3]
 end
 
 ## Finite Elemenet Values
 function create_values()
     order = 1
     dim = 3
-    ip = Lagrange{RefHexahedron,order}()^dim
+    ip = Lagrange{RefHexahedron, order}()^dim
     qr = QuadratureRule{RefHexahedron}(2)
     qr_face = FacetQuadratureRule{RefHexahedron}(1)
     cell_values = CellValues(qr, ip)
@@ -60,7 +60,7 @@ end
 ## Create Degrees of freedom
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
-    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron,1}()^3)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron, 1}()^3)
     Ferrite.close!(dh)
     return dh
 end
@@ -174,7 +174,7 @@ function f_nonlinear!(res, u, p)
     cv, _ = create_values()
 
     assemble_global_residual!(res, dh, cv, mp, u)
-    apply_zero!(res, dbcs)
+    return apply_zero!(res, dbcs)
 end
 
 
@@ -184,21 +184,21 @@ function j_nonlinear!(K, u, p)
 
     fill!(K.nzval, 0.0)
     assemble_global_Jacobian!(K, dh, cv, mp, u)
-    apply!(K, dbcs)
+    return apply!(K, dbcs)
 end
 
 function solve_nonlinear(E, ν, grid, displacement_prescribed, numSteps)
 
     # --- Material ---
     μ = E / (2 * (1 + ν))
-    λ = (E * ν) / ((1 + ν) * (1 - 2 * ν))   
+    λ = (E * ν) / ((1 + ν) * (1 - 2 * ν))
     mp = NeoHooke(μ, λ)
 
     # --- FEM setup ---
     dh = create_dofhandler(grid)
     dbcs = create_bc(dh)
 
-    UT = Vector{Vector{Point{3,Float64}}}(undef, numSteps + 1)
+    UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps + 1)
     UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(Float64, numSteps + 1)
 
@@ -230,17 +230,17 @@ function solve_nonlinear(E, ν, grid, displacement_prescribed, numSteps)
         sol = NonlinearSolve.solve(
             prob,
             NewtonRaphson(linesearch = BackTracking());
-            abstol = 1e-8,
-            reltol = 1e-8,
+            abstol = 1.0e-8,
+            reltol = 1.0e-8,
             maxiters = 30
         )
 
         @assert sol.retcode == SciMLBase.ReturnCode.Success
-        u .= sol.u   
+        u .= sol.u
 
         # --- Postprocessing ---
         u_nodes = vec(evaluate_at_grid_nodes(dh, u, :u))
-        disp_points = [Point{3,Float64}(u_nodes[j]) for j in eachindex(u_nodes)]
+        disp_points = [Point{3, Float64}(u_nodes[j]) for j in eachindex(u_nodes)]
 
         UT[step] = disp_points
         UT_mag[step] = norm.(disp_points)
@@ -260,32 +260,34 @@ numInc = length(UT)
 # Create displaced mesh per step
 scale = 1.0
 VT = [V .+ scale .* UT[i] for i in 1:(numSteps + 1)]
-incRange =  0:1:numInc-1
+incRange = 0:1:(numInc - 1)
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
+fig_disp = Figure(size = (1000, 600))
 stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title="Step: $stepStart")
+ax3 = AxisGeom(fig_disp[1, 1], title = "Step: $stepStart")
 
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
-hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
+hp = meshplot!(
+    ax3, Fb, VT[stepStart];
+    strokewidth = 2,
+    color = UT_mag[stepStart],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0, maximum(ut_mag_max))
+)
 
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
     i = stepIndex + 1   # shift to 1-based indexing

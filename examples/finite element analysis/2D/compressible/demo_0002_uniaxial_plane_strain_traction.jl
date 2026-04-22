@@ -12,7 +12,7 @@ Vec = Ferrite.Vec
 function create_grid(Lx, Ly, nx, ny)
     corners = [
         Ferrite.Vec{2}((0.0, 0.0)), Ferrite.Vec{2}((Lx, 0.0)),
-        Ferrite.Vec{2}((Lx, Ly)), Ferrite.Vec{2}((0.0, Ly))
+        Ferrite.Vec{2}((Lx, Ly)), Ferrite.Vec{2}((0.0, Ly)),
     ]
     grid = Ferrite.generate_grid(Ferrite.Quadrilateral, (nx, ny), corners)
     addnodeset!(grid, "support_1", x -> x[1] ≈ 0.0)
@@ -22,7 +22,7 @@ end
 ## Finite Elemenet Values
 function create_values()
     dim, order = 2, 1
-    ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral,order}()^dim
+    ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral, order}()^dim
     qr = Ferrite.QuadratureRule{Ferrite.RefQuadrilateral}(2)
     qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(2)
     return Ferrite.CellValues(qr, ip), Ferrite.FacetValues(qr_face, ip)
@@ -30,7 +30,7 @@ end
 ## Create Degrees of freedom
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
-    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefQuadrilateral,1}()^2)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefQuadrilateral, 1}()^2)
     Ferrite.close!(dh)
     return dh
 end
@@ -71,14 +71,18 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
     for qp in 1:getnquadpoints(cv)
         dΩ = getdetJdV(cv, qp)
         ∇u2d = function_gradient(cv, qp, ue)
-        F2d = [1.0+∇u2d[1, 1] ∇u2d[1, 2];
-            ∇u2d[2, 1] 1.0+∇u2d[2, 2]]
+        F2d = [
+            1.0 + ∇u2d[1, 1] ∇u2d[1, 2];
+            ∇u2d[2, 1] 1.0 + ∇u2d[2, 2]
+        ]
 
-        F = Tensor{2,3,Float64}((
-            F2d[1, 1], F2d[1, 2], 0.0,
-            F2d[2, 1], F2d[2, 2], 0.0,
-            0.0, 0.0, 1.0
-        ))
+        F = Tensor{2, 3, Float64}(
+            (
+                F2d[1, 1], F2d[1, 2], 0.0,
+                F2d[2, 1], F2d[2, 2], 0.0,
+                0.0, 0.0, 1.0,
+            )
+        )
         C = tdot(F) # F' ⋅ F
         # Compute stress and tangent
         S, ∂S∂C = constitutive_driver(C, mp)
@@ -89,22 +93,26 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
         # Loop over test functions
         for i in 1:ndofs
             ∇δui2d = shape_gradient(cv, qp, i)
-            ∇δui = Tensor{2,3,Float64}((
-                ∇δui2d[1, 1], ∇δui2d[1, 2], 0.0,
-                ∇δui2d[2, 1], ∇δui2d[2, 2], 0.0,
-                0.0, 0.0, 0.0
-            ))
+            ∇δui = Tensor{2, 3, Float64}(
+                (
+                    ∇δui2d[1, 1], ∇δui2d[1, 2], 0.0,
+                    ∇δui2d[2, 1], ∇δui2d[2, 2], 0.0,
+                    0.0, 0.0, 0.0,
+                )
+            )
 
             ge[i] += (∇δui ⊡ P) * dΩ
 
             ∇δui∂P∂F = ∇δui ⊡ ∂P∂F
             for j in 1:ndofs
                 ∇δuj2d = shape_gradient(cv, qp, j)
-                ∇δuj = Tensor{2,3,Float64}((
-                    ∇δuj2d[1, 1], ∇δuj2d[1, 2], 0.0,
-                    ∇δuj2d[2, 1], ∇δuj2d[2, 2], 0.0,
-                    0.0, 0.0, 0.0
-                ))
+                ∇δuj = Tensor{2, 3, Float64}(
+                    (
+                        ∇δuj2d[1, 1], ∇δuj2d[1, 2], 0.0,
+                        ∇δuj2d[2, 1], ∇δuj2d[2, 2], 0.0,
+                        0.0, 0.0, 0.0,
+                    )
+                )
                 ke[i, j] += (∇δui∂P∂F ⊡ ∇δuj) * dΩ
             end
         end
@@ -116,9 +124,13 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
             for qp in 1:getnquadpoints(fv)
 
                 ∇uu = function_gradient(fv, qp, ue)
-                F = Tensor{2,3,Float64}((1.0 + ∇uu[1, 1], ∇uu[1, 2], 0.0,
-                    ∇uu[2, 1], 1.0 + ∇uu[2, 2], 0.0,
-                    0.0, 0.0, 1.0))
+                F = Tensor{2, 3, Float64}(
+                    (
+                        1.0 + ∇uu[1, 1], ∇uu[1, 2], 0.0,
+                        ∇uu[2, 1], 1.0 + ∇uu[2, 2], 0.0,
+                        0.0, 0.0, 1.0,
+                    )
+                )
 
                 J = det(F)
                 FinvT = inv(F)'
@@ -145,10 +157,13 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
 
                     for j in 1:ndofs
                         ∇δuj2d = shape_gradient(fv, qp, j)
-                        δF = Tensor{2,3,Float64}((
-                            ∇δuj2d[1, 1], ∇δuj2d[1, 2], 0.0,
-                            ∇δuj2d[2, 1], ∇δuj2d[2, 2], 0.0,
-                            0.0, 0.0, 0.0))
+                        δF = Tensor{2, 3, Float64}(
+                            (
+                                ∇δuj2d[1, 1], ∇δuj2d[1, 2], 0.0,
+                                ∇δuj2d[2, 1], ∇δuj2d[2, 2], 0.0,
+                                0.0, 0.0, 0.0,
+                            )
+                        )
 
                         δJ = J * (FinvT ⊡ δF)
                         δC = δF' ⋅ F + F' ⋅ δF
@@ -162,6 +177,7 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
             end
         end
     end
+    return
 end;
 
 
@@ -200,7 +216,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
     nd = ndofs(dh)
 
     # --- Storage ---
-    UT = Vector{Vector{Point{2,Float64}}}(undef, numSteps + 1)
+    UT = Vector{Vector{Point{2, Float64}}}(undef, numSteps + 1)
     UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(numSteps + 1)
 
@@ -214,7 +230,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
     g = zeros(nd)
 
     # --- Parameters ---
-    NEWTON_TOL = 1e-8
+    NEWTON_TOL = 1.0e-8
     NEWTON_MAXITER = 100
 
     Tf = 1.0                    # load factor
@@ -232,8 +248,10 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
         newton_itr = 0
 
         # scaled traction vector
-        τ = (t * traction_prescribed[1],
-            t * traction_prescribed[2])
+        τ = (
+            t * traction_prescribed[1],
+            t * traction_prescribed[2],
+        )
 
         while true
             u .= un .+ Δu
@@ -262,7 +280,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
 
         # --- Postprocessing ---
         u_nodes = vec(evaluate_at_grid_nodes(dh, u, :u))
-        disp_points = [Point{2,Float64}((p[1], p[2])) for p in u_nodes]
+        disp_points = [Point{2, Float64}((p[1], p[2])) for p in u_nodes]
 
         UT[step] = disp_points
         UT_mag[step] = norm.(disp_points)
@@ -289,34 +307,36 @@ numInc = length(UT)          # 11 steps: 0 → 10
 scale = 1.0
 
 # Convert V to 2D points
-VV = [Point{2,Float64}(e[1], e[2]) for e in V]
+VV = [Point{2, Float64}(e[1], e[2]) for e in V]
 
 # Use all steps (1-based indexing in Julia)
 VT = [VV .+ scale .* UT[i] for i in 1:numInc]
 
 # Slider from 0 → numInc-1
-incRange = 0:numInc-1
+incRange = 0:(numInc - 1)
 
 min_p = minp([minp(VT[i]) for i in 1:numInc])
 max_p = maxp([maxp(VT[i]) for i in 1:numInc])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
-stepStart = 1 
+fig_disp = Figure(size = (1000, 600))
+stepStart = 1
 ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
 
 # Initial mesh (step 0)
-hp = poly!(ax3, GeometryBasics.Mesh(VT[stepStart + 1], F), 
-           strokewidth = 2,
-           color = UT_mag[stepStart + 1], 
-           transparency = false, 
-           colormap = Reverse(:Spectral), 
-           colorrange = (0, maximum(ut_mag_max)))
+hp = poly!(
+    ax3, GeometryBasics.Mesh(VT[stepStart + 1], F),
+    strokewidth = 2,
+    color = UT_mag[stepStart + 1],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0, maximum(ut_mag_max))
+)
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]") 
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
 hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 

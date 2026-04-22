@@ -7,27 +7,26 @@ using ComodoFerrite
 using ComodoFerrite.Ferrite
 
 
-## GLMakie setting 
+## GLMakie setting
 GLMakie.closeall()
 
-## Mesh 
-boxDim = [10.0,40.0,10.0]
+## Mesh
+boxDim = [10.0, 40.0, 10.0]
 boxEl = [5, 10, 5]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 grid = ComodoToFerrite(E, V)
-Fb_back = Fb[Cb.==4]   
-addface!(grid , "back", Fb_back) 
+Fb_back = Fb[Cb .== 4]
+addface!(grid, "back", Fb_back)
 
-Fb_front = Fb[Cb.==3]  
-addface!(grid , "front", Fb_front) 
-
+Fb_front = Fb[Cb .== 3]
+addface!(grid, "front", Fb_front)
 
 
 ## Finite Elemenet Values
 function create_values()
     order = 1
     dim = 3
-    ip = Lagrange{RefHexahedron,order}()^dim
+    ip = Lagrange{RefHexahedron, order}()^dim
     qr = QuadratureRule{RefHexahedron}(2)
     qr_face = FacetQuadratureRule{RefHexahedron}(1)
     cell_values = CellValues(qr, ip)
@@ -38,7 +37,7 @@ end
 ## Create Degrees of freedom
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
-    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron,1}()^3)
+    Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefHexahedron, 1}()^3)
     Ferrite.close!(dh)
     return dh
 end
@@ -73,7 +72,6 @@ function constitutive_driver(C, mp::NeoHooke)
     ∂S∂C = 2.0 * ∂²Ψ∂C²
     return S, ∂S∂C
 end;
-
 
 
 function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
@@ -143,6 +141,7 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
             end
         end
     end
+    return
 end;
 
 function assemble_global!(K, g, dh, cv, fv, mp, u, ΓN, tn)
@@ -172,7 +171,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
 
     # --- FEM setup ---
     dh = create_dofhandler(grid)
-    dbcs = create_bc(dh,grid)
+    dbcs = create_bc(dh, grid)
     cv, fv = create_values()
 
     ΓN = getfacetset(grid, "front")
@@ -180,7 +179,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
     nd = ndofs(dh)
 
 
-    UT = Vector{Vector{Point{3,Float64}}}(undef, numSteps + 1)
+    UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps + 1)
     UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(Float64, numSteps + 1)
 
@@ -194,7 +193,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
     g = zeros(nd)
 
     # --- Parameters ---
-    NEWTON_TOL = 1e-8
+    NEWTON_TOL = 1.0e-8
     NEWTON_MAXITER = 100
 
     Tf = 1.0                    # load factor
@@ -212,8 +211,8 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
         newton_itr = 0
 
         # scaled traction vector
-        tn = t .*traction_prescribed
-        
+        tn = t .* traction_prescribed
+
 
         while true
             u .= un .+ Δu
@@ -247,7 +246,7 @@ function solve(E, ν, grid, traction_prescribed, numSteps)
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
 
-        disp_points = [Point{3,Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_points = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
 
 
         UT[step] = disp_points
@@ -262,7 +261,7 @@ end
 E = 10.0
 ν = 0.3
 
-traction_prescribed =  [0.0 , 0.0, -0.1]
+traction_prescribed = [0.0, 0.0, -0.1]
 numSteps = 10
 UT, UT_mag, ut_mag_max = solve(E, ν, grid, traction_prescribed, numSteps)
 
@@ -272,32 +271,34 @@ numInc = length(UT)
 # Create displaced mesh per step
 scale = 1.0
 VT = [V .+ scale .* UT[i] for i in 1:(numSteps + 1)]
-incRange =  0:1:numInc-1
+incRange = 0:1:(numInc - 1)
 
 min_p = minp([minp(V) for V in VT])
 max_p = maxp([maxp(V) for V in VT])
 
 # === Visualization setup ===
-fig_disp = Figure(size=(1000, 600))
+fig_disp = Figure(size = (1000, 600))
 stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title="Step: $stepStart")
+ax3 = AxisGeom(fig_disp[1, 1], title = "Step: $stepStart")
 
 
 xlims!(ax3, min_p[1], max_p[1])
 ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
-hp = meshplot!(ax3, Fb, VT[stepStart]; 
-               strokewidth = 2,
-               color = UT_mag[stepStart], 
-               transparency = false, 
-               colormap = Reverse(:Spectral), 
-               colorrange = (0, maximum(ut_mag_max)))
+hp = meshplot!(
+    ax3, Fb, VT[stepStart];
+    strokewidth = 2,
+    color = UT_mag[stepStart],
+    transparency = false,
+    colormap = Reverse(:Spectral),
+    colorrange = (0, maximum(ut_mag_max))
+)
 
 
-Colorbar(fig_disp[1, 2], hp.plots[1], label="Displacement magnitude [mm]")
+Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
-hSlider = Slider(fig_disp[2, 1], range=incRange, startvalue= stepStart, linewidth=30)
+hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
     i = stepIndex + 1   # shift to 1-based indexing

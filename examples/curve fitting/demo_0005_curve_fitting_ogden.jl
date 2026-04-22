@@ -26,18 +26,20 @@ mat_cons_solver = solver_constants_hyper(data_type, modelType, strainExp, Sexp)
 λ = @. ϵ + 1
 
 # Ogden nominal stress (uniaxial, incompressible)
-P_model = @. (2*μ1/α1)*(λ^(α1-1) - λ^(-1 - α1/2)) +
-            (2*μ2/α2)*(λ^(α2-1) - λ^(-1 - α2/2)) +
-            (2*μ3/α3)*(λ^(α3-1) - λ^(-1 - α3/2))
+P_model = @. (2 * μ1 / α1) * (λ^(α1 - 1) - λ^(-1 - α1 / 2)) +
+    (2 * μ2 / α2) * (λ^(α2 - 1) - λ^(-1 - α2 / 2)) +
+    (2 * μ3 / α3) * (λ^(α3 - 1) - λ^(-1 - α3 / 2))
 
 # Plot results
 GLMakie.closeall()
-fig = Figure(size=(800, 600), fontsize=26)
-ax = Axis(fig[1, 1], xlabel=L"\varepsilon", ylabel=L"P", 
-          xgridvisible=false, ygridvisible=false)
+fig = Figure(size = (800, 600), fontsize = 26)
+ax = Axis(
+    fig[1, 1], xlabel = L"\varepsilon", ylabel = L"P",
+    xgridvisible = false, ygridvisible = false
+)
 
-lines!(ax, ϵ, P_model, color=:black, label="Fit, Ogden (3-term)")
-scatter!(ax, strainExp, P_exp, marker=:circle, color=:red, label="Uniaxial experiment")
+lines!(ax, ϵ, P_model, color = :black, label = "Fit, Ogden (3-term)")
+scatter!(ax, strainExp, P_exp, marker = :circle, color = :red, label = "Uniaxial experiment")
 
-axislegend(ax, position=:lt, backgroundcolor=(:white, 0.7), framecolor=:gray)
+axislegend(ax, position = :lt, backgroundcolor = (:white, 0.7), framecolor = :gray)
 display(fig)
