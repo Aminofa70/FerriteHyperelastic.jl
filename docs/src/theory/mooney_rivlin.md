@@ -28,7 +28,7 @@ Jacobian:
 J = \sqrt{\det(\mathbf{C})}
 ```
 
-## Nearly-Incompressible (uncoupled deviatoric) Mooney-Rivlin
+## Nearly-Incompressible (uncoupled) Mooney-Rivlin
 
 ```math
 \begin{equation}

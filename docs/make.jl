@@ -19,9 +19,10 @@ makedocs(
             "Hyperelastic Models" => [
                 "Neo-Hookean Model" => "theory/neo_hookean.md",
                 "Mooney-Rivlin Model" => "theory/mooney_rivlin.md",
+                "Ogden Model" => "theory/ogden.md",
             ],
             "FEM Theory" => [
-                #"Weak Formulation" => "theory/fem/weak_form.md",
+                "Weak Formulation" => "theory/weak_form.md",
                # "Finite Element Discretization" => "theory/fem/discretization.md",
             ],
         ],

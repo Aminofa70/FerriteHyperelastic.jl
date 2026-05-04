@@ -39,7 +39,7 @@ Poisson’s ratio: $\nu$
 \lambda = \frac{\nu E}{(1+\nu)(1-2\nu)}
 ```
 
-## Nearly-Incompressible (uncoupled deviatoric) neo-Hookean 
+## Nearly-Incompressible (uncoupled) neo-Hookean 
 
 ```math
 \begin{equation}
