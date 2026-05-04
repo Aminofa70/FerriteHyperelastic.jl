@@ -22,40 +22,40 @@
 #     devbranch="main",
 # )
 
-using Documenter
-using Documenter.Remotes
-using FerriteHyperelastic
+# using Documenter
+# using Documenter.Remotes
+# using FerriteHyperelastic
 
-DocMeta.setdocmeta!(FerriteHyperelastic, :DocTestSetup, :(using FerriteHyperelastic); recursive=true)
+# DocMeta.setdocmeta!(FerriteHyperelastic, :DocTestSetup, :(using FerriteHyperelastic); recursive=true)
 
-makedocs(
-    modules=[FerriteHyperelastic],
-    sitename="FerriteHyperelastic.jl",
-    authors="Aminofa70 <amin.alibakhshi@upm.es> and contributors",
-    repo=Remotes.GitHub("Aminofa70", "FerriteHyperelastic.jl"),
-    format=Documenter.HTML(
-        prettyurls=get(ENV, "CI", "false") == "true",
-        repolink="https://github.com/Aminofa70/FerriteHyperelastic.jl",
-    ),
-    pages=[
-        "Home" => "index.md",
-        "Install" => "install.md",
-        "Functions" => "functions.md",
-        "Tutorials" => [
-            "tutorial curve fitting" => "tutorials/tutorial_curve_fitting.md",
-        ]
-    ],
-)
+# makedocs(
+#     modules=[FerriteHyperelastic],
+#     sitename="FerriteHyperelastic.jl",
+#     authors="Aminofa70 <amin.alibakhshi@upm.es> and contributors",
+#     repo=Remotes.GitHub("Aminofa70", "FerriteHyperelastic.jl"),
+#     format=Documenter.HTML(
+#         prettyurls=get(ENV, "CI", "false") == "true",
+#         repolink="https://github.com/Aminofa70/FerriteHyperelastic.jl",
+#     ),
+#     pages=[
+#         "Home" => "index.md",
+#         "Install" => "install.md",
+#         "Functions" => "functions.md",
+#         "Tutorials" => [
+#             "tutorial curve fitting" => "tutorials/tutorial_curve_fitting.md",
+#         ]
+#     ],
+# )
 
-deploydocs(
-    repo = "github.com/Aminofa70/FerriteHyperelastic.jl",
-    devbranch = "main",
-    push_preview = false,
-    versions = [
-        "stable" => "v1.0.0",  
-        "dev" => "main",
-    ],
-)
+# deploydocs(
+#     repo = "github.com/Aminofa70/FerriteHyperelastic.jl",
+#     devbranch = "main",
+#     push_preview = false,
+#     versions = [
+#         "stable" => "v1.0.0",  
+#         "dev" => "main",
+#     ],
+# )
 
 # deploydocs(
 #     repo = "github.com/Aminofa70/FerriteHyperelastic.jl",
@@ -63,4 +63,30 @@ deploydocs(
 #     push_preview = false,
 # )
 
+using FerriteHyperelastic
+using Documenter
+using DocumenterVitepress
 
+DocMeta.setdocmeta!(FerriteHyperelastic, :DocTestSetup, :(using FerriteHyperelastic); recursive=true)
+
+makedocs(
+    modules=[FerriteHyperelastic],
+    sitename="FerriteHyperelastic.jl",
+    authors="Aminofa70 <amin.alibakhshi@upm.es> and contributors",
+    format= DocumenterVitepress.MarkdownVitepress(
+        repo="github.com/Aminofa70/FerriteHyperelastic.jl",
+        devbranch="main",
+        devurl="dev",
+    ),
+    pages=[
+        "Home" => "index.md",
+    ],
+)
+
+DocumenterVitepress.deploydocs(;
+    repo="github.com/Aminofa70/FerriteHyperelastic.jl.git",
+    target=joinpath(@__DIR__, "build"),
+    branch="gh-pages",
+    devbranch="main",
+    push_preview=true
+)
