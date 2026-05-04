@@ -1,68 +1,3 @@
-# using FerriteHyperelastic
-# using Documenter
-
-# DocMeta.setdocmeta!(FerriteHyperelastic, :DocTestSetup, :(using FerriteHyperelastic); recursive=true)
-
-# makedocs(;
-#     modules=[FerriteHyperelastic],
-#     authors="Aminofa70 <amin.alibakhshi@upm.es> and contributors",
-#     sitename="FerriteHyperelastic.jl",
-#     format=Documenter.HTML(;
-#         canonical="https://Aminofa70.github.io/FerriteHyperelastic.jl",
-#         edit_link="main",
-#         assets=String[],
-#     ),
-#     pages=[
-#         "Home" => "index.md",
-#     ],
-# )
-
-# deploydocs(;
-#     repo="github.com/Aminofa70/FerriteHyperelastic.jl",
-#     devbranch="main",
-# )
-
-# using Documenter
-# using Documenter.Remotes
-# using FerriteHyperelastic
-
-# DocMeta.setdocmeta!(FerriteHyperelastic, :DocTestSetup, :(using FerriteHyperelastic); recursive=true)
-
-# makedocs(
-#     modules=[FerriteHyperelastic],
-#     sitename="FerriteHyperelastic.jl",
-#     authors="Aminofa70 <amin.alibakhshi@upm.es> and contributors",
-#     repo=Remotes.GitHub("Aminofa70", "FerriteHyperelastic.jl"),
-#     format=Documenter.HTML(
-#         prettyurls=get(ENV, "CI", "false") == "true",
-#         repolink="https://github.com/Aminofa70/FerriteHyperelastic.jl",
-#     ),
-#     pages=[
-#         "Home" => "index.md",
-#         "Install" => "install.md",
-#         "Functions" => "functions.md",
-#         "Tutorials" => [
-#             "tutorial curve fitting" => "tutorials/tutorial_curve_fitting.md",
-#         ]
-#     ],
-# )
-
-# deploydocs(
-#     repo = "github.com/Aminofa70/FerriteHyperelastic.jl",
-#     devbranch = "main",
-#     push_preview = false,
-#     versions = [
-#         "stable" => "v1.0.0",  
-#         "dev" => "main",
-#     ],
-# )
-
-# deploydocs(
-#     repo = "github.com/Aminofa70/FerriteHyperelastic.jl",
-#     devbranch = "main",
-#     push_preview = false,
-# )
-
 using FerriteHyperelastic
 using Documenter
 using DocumenterVitepress
@@ -73,14 +8,45 @@ makedocs(
     modules=[FerriteHyperelastic],
     sitename="FerriteHyperelastic.jl",
     authors="Aminofa70 <amin.alibakhshi@upm.es> and contributors",
-    format= DocumenterVitepress.MarkdownVitepress(
+    format=DocumenterVitepress.MarkdownVitepress(
         repo="github.com/Aminofa70/FerriteHyperelastic.jl",
         devbranch="main",
         devurl="dev",
     ),
     pages=[
         "Home" => "index.md",
-    ],
+        "Theory" => [
+            "Hyperelastic Models" => [
+                "Neo-Hookean Model" => "theory/neo_hookean.md",
+                "Mooney-Rivlin Model" => "theory/mooney_rivlin.md",
+            ],
+            "FEM Theory" => [
+                #"Weak Formulation" => "theory/fem/weak_form.md",
+               # "Finite Element Discretization" => "theory/fem/discretization.md",
+            ],
+        ],
+        "Curve Fitting" => [
+            "Instruction Curve Fitting" => "tutorials/tutorial_curve_fitting.md",
+        ],
+        "FEM Ferrite Solver" => [
+            "2D" => [
+                "Uniaxial Plane Stress Displacement" => "2D/demo_0001_uniaxial_plane_stress_displacement.md",
+                "Uniaxial Plane Strain Traction" => "2D/demo_0001_uniaxial_plane_stress_displacement.md",
+            ],
+            "3D" => [
+                "Compressible" => [
+                ],
+                "Nearly-Incompressible" => [
+                ],
+                "Incompressible" => [
+                ],
+            ],
+        ],
+        "FEM FESolvers Package" => [
+            "demo_0001_uniaxial_plane_stress_displacement " => "2D/demo_0001_uniaxial_plane_stress_displacement.md"
+        ],
+        "API Reference" => "api.md",
+    ]
 )
 
 DocumenterVitepress.deploydocs(;

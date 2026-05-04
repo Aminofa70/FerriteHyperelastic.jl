@@ -1,3 +1,8 @@
+# Finite Element for uniaxial plane stress subjected to prescribed displacement
+
+### Dependencies
+
+````julia
 using ComodoFerrite
 using ComodoFerrite.Comodo
 using ComodoFerrite.Ferrite
@@ -5,9 +10,17 @@ using ComodoFerrite.Comodo.GeometryBasics
 using ForwardDiff, IterativeSolvers, Roots
 using IterativeSolvers, Roots
 using ComodoFerrite.Comodo.GLMakie
-GLMakie.closeall()
+````
 
-## Geometry and Mesh
+### Initialization of the plots
+
+````julia
+GLMakie.closeall()
+````
+
+### Creating a Rectangular Finite Element Grid with Boundary Node Sets
+
+````julia
 function create_grid(Lx, Ly, nx, ny)
     corners = [
         Ferrite.Vec{2}((0.0, 0.0)), Ferrite.Vec{2}((Lx, 0.0)),
@@ -18,7 +31,11 @@ function create_grid(Lx, Ly, nx, ny)
     addnodeset!(grid, "load", x -> x[1] ≈ Lx)
     return grid
 end
-## Finite Elemenet Values
+````
+
+###  Finite Element Shape Functions and Quadrature Setup
+
+````julia
 function create_values()
     dim, order = 2, 1
     ip = Ferrite.Lagrange{Ferrite.RefQuadrilateral, order}()^dim
@@ -26,14 +43,22 @@ function create_values()
     qr_face = Ferrite.FacetQuadratureRule{Ferrite.RefQuadrilateral}(2)
     return Ferrite.CellValues(qr, ip), Ferrite.FacetValues(qr_face, ip)
 end
-## Create Degrees of freedom
+````
+
+### Degree of Freedom (DoF) Handler Setup
+
+````julia
 function create_dofhandler(grid)
     dh = Ferrite.DofHandler(grid)
     Ferrite.add!(dh, :u, Ferrite.Lagrange{Ferrite.RefQuadrilateral, 1}()^2)
     Ferrite.close!(dh)
     return dh
 end
+````
 
+### Boundary Condition (Dirichlet) Setup
+
+````julia
 function create_bc(dh)
     ch = Ferrite.ConstraintHandler(dh)
     Ferrite.add!(ch, Ferrite.Dirichlet(:u, Ferrite.getnodeset(dh.grid, "support_1"), (x, t) -> [0.0, 0.0], [1, 2]))
@@ -43,7 +68,11 @@ function create_bc(dh)
     Ferrite.update!(ch, t)
     return ch
 end
+````
 
+### Neo-Hookean Material Model and Strain Energy Function
+
+````julia
 struct NeoHooke
     μ::Float64
     λ::Float64
@@ -56,14 +85,22 @@ function Ψ(C, mp::NeoHooke)
     J = sqrt(det(C))
     return μ / 2 * (Ic - 3) - μ * log(J) + λ / 2 * (log(J))^2
 end
+````
 
+### Constitutive Driver: Stress and Tangent Computation
+
+````julia
 function constitutive_driver(C, mp::NeoHooke)
     ∂²Ψ∂C², ∂Ψ∂C = Tensors.hessian(y -> Ψ(y, mp), C, :all)
     S = 2.0 * ∂Ψ∂C
     ∂S∂C = 2.0 * ∂²Ψ∂C²
     return S, ∂S∂C
 end;
+````
 
+### Solving Out-of-Plane Stretch (λ₃) via Newton Method
+
+````julia
 function solve_lambda3(F2d, mp; tol = 1.0e-10, maxit = 25)
     J2D = det(F2d)
     λ3₀ = inv(J2D)
@@ -97,8 +134,11 @@ function solve_lambda3(F2d, mp; tol = 1.0e-10, maxit = 25)
         maxiters = maxit
     )
 end
+````
 
+### Element Residual and Tangent Stiffness Assembly
 
+````julia
 function assemble_element!(ke, ge, cell, cv, mp, ue)
     reinit!(cv, cell)
     fill!(ke, 0.0)
@@ -123,7 +163,7 @@ function assemble_element!(ke, ge, cell, cv, mp, ue)
                 0.0, 0.0, λ3,
             )
         )
-        C = tdot(F) # F' ⋅ F
+        C = tdot(F) ## F' ⋅ F
         # Compute stress and tangent
         S, ∂S∂C = constitutive_driver(C, mp)
         P = F ⋅ S
@@ -159,7 +199,11 @@ function assemble_element!(ke, ge, cell, cv, mp, ue)
     end
     return
 end;
+````
 
+### Global Residual and Stiffness Matrix Assembly
+
+````julia
 function assemble_global!(K, g, dh, cv, mp, u)
     n = ndofs_per_cell(dh)
     ke = zeros(n, n)
@@ -171,13 +215,17 @@ function assemble_global!(K, g, dh, cv, mp, u)
     # Loop over all cells in the grid
     for cell in CellIterator(dh)
         global_dofs = celldofs(cell)
-        ue = u[global_dofs] # element dofs
+        ue = u[global_dofs] ## element dofs
         assemble_element!(ke, ge, cell, cv, mp, ue)
         assemble!(assembler, global_dofs, ke, ge)
     end
     return
 end;
+````
 
+### Nonlinear Finite Element Solver with Load Stepping
+
+````julia
 function solve(E, ν, grid, displacement_prescribed, numSteps)
 
     # --- Material ---
@@ -267,22 +315,36 @@ function solve(E, ν, grid, displacement_prescribed, numSteps)
 
     return UT, UT_mag, ut_mag_max
 end
+````
 
+### Grid Creation and Conversion to Comodo Format
 
+````julia
 Lx, Ly = 1, 1
 nx, ny = 10, 10
 grid = create_grid(Lx, Ly, nx, ny)
 F, V = FerriteToComodo(grid)
+````
 
+### Material Properties Definition (Young’s Modulus and Poisson’s Ratio)
 
+````julia
 E = 10.0
 ν = 0.3
+````
 
+### Running the Simulation and Computing Displacement Results
+
+````julia
 displacement_prescribed = 1.0
 numSteps = 10
 UT, UT_mag, ut_mag_max = solve(E, ν, grid, displacement_prescribed, numSteps)
+````
 
-numInc = length(UT)          # 11 steps: 0 → 10
+### Postprocessing Deformed Mesh and Animation Setup
+
+````julia
+numInc = length(UT)          ## 11 steps: 0 → 10
 scale = 1.0
 
 # Convert V to 2D points
@@ -296,8 +358,11 @@ incRange = 0:(numInc - 1)
 
 min_p = minp([minp(VT[i]) for i in 1:numInc])
 max_p = maxp([maxp(VT[i]) for i in 1:numInc])
+````
 
-# === Visualization setup ===
+### Interactive Visualization of Deformation with Slider Control
+
+````julia
 fig_disp = Figure(size = (1000, 600))
 stepStart = 1
 ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
@@ -320,7 +385,7 @@ Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
 
 on(hSlider.value) do stepIndex
-    i = stepIndex + 1  # shift to 1-based array index
+    i = stepIndex + 1  ## shift to 1-based array index
     hp[1] = GeometryBasics.Mesh(VT[i], F)
     hp.color = UT_mag[i]
     ax3.title = "Step: $stepIndex"
@@ -328,3 +393,9 @@ end
 
 slidercontrol(hSlider, ax3)
 display(GLMakie.Screen(), fig_disp)
+````
+
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+
