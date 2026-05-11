@@ -1,7 +1,7 @@
 
 ## Principle of Minimum Potential Energy
 
-### Derivation of the finite element formulation based on the principle of minimum potential energy.
+### Weak Form Formulation
 
 Total Potential Energy:
 ```math
@@ -100,7 +100,7 @@ The variational external energy is:
 
 ```math
 \begin{equation}
-\label{eq:6}
+\label{eq:7}
     \delta U_{ext} = \oint_{\Gamma_0} \mathbf{t}_0 \delta \mathbf{u}\,d\Gamma_0
 \end{equation}
 ```
@@ -108,9 +108,70 @@ The variational external energy is:
 == Follower Load 
 ```math
 \begin{equation}
-\label{eq:6-6}
+\label{eq:7-7}
 \delta U_{ext} = \oint_{\Gamma_0} \mathbf{t} \cdot \delta \mathbf{u}\; J(\mathbf{u}) \sqrt{\mathbf{N} \cdot \mathbf{C}(\mathbf{u})^{-1} \mathbf{N}} \, d\Gamma_0
 \end{equation}
 ```
 
 :::
+
+The residual is defined as:
+
+:::tabs
+
+== Dead Load
+```math
+R(\mathbf{u}) = \int_\Omega \mathbf{P} : \nabla \delta \mathbf{u} \, d\Omega- \oint_{\Gamma_0} \mathbf{t}_0 \delta \mathbf{u}\,d\Gamma_0
+```
+
+== Follower Load 
+
+```math
+R(\mathbf{u}) = \int_\Omega \mathbf{P} : \nabla \delta \mathbf{u} \, d\Omega - \oint_{\Gamma_0} \mathbf{t} \cdot \delta \mathbf{u}\; J(\mathbf{u}) \sqrt{\mathbf{N} \cdot \mathbf{C}(\mathbf{u})^{-1} \mathbf{N}} \, d\Gamma_0
+```
+:::
+
+## Linearization of residual 
+
+::: info
+
+Taylor series expansion is 
+```math
+f(x) = f(a) + f'(a)(x-a) + \frac{1}{2} f''(a)(x-a)^2 + ...
+```
+For linearization of residual, we need forward shift form of the Taylor series.
+For the general form,
+
+```math
+f(x + h) = f(x) + h f'(x) + \frac{h^2}{2!}f''(x) + ...
+```
+::: 
+
+In the finite element, we have
+```math
+u^{k+1} = u^{k} + \Delta u 
+```
+
+Then, Taylor is (Linearization)
+```math
+R(u^{k+1}) = R(u^{k} + \Delta u) \approx R(u^{k}) + R'(u^{k}) \Delta u
+```
+The tangent stiffness matrix 
+```math
+K(u^k) := R'(u^{k}) = \frac{\partial R}{\partial u^k}
+```
+Then, final form of the linearization is
+```math
+R(u^{k+1}) = R(u^{k} + \Delta u) \approx R(u^{k}) + K \Delta u
+```
+Equilibrium enforces
+```math
+R(u^{k+1}) = R(u^{k} + \Delta u) = 0
+```
+Then
+```math
+K(u^k) \Delta u = - R(u)
+```
+For the discretization of the linearized equilibrium equations and the residual, please refer to [Finite Element Discretization](discretization.md)
+
+

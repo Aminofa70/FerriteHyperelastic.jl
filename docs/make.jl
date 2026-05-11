@@ -23,7 +23,7 @@ makedocs(
             ],
             "FEM Theory" => [
                 "Weak Formulation" => "theory/weak_form.md",
-               # "Finite Element Discretization" => "theory/fem/discretization.md",
+               "Finite Element Discretization" => "theory/discretization.md",
             ],
         ],
         "Curve Fitting" => [

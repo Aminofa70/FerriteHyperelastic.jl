@@ -381,9 +381,9 @@ ylims!(ax3, min_p[2], max_p[2])
 zlims!(ax3, min_p[3], max_p[3])
 
 hp = meshplot!(
-    ax3, Fb, VT[stepStart];
+    ax3, Fb, VT[stepStart + 1];
     strokewidth = 2,
-    color = UT_mag[stepStart],
+    color = UT_mag[stepStart + 1],
     transparency = false,
     colormap = Reverse(:Spectral),
     colorrange = (0, maximum(ut_mag_max))

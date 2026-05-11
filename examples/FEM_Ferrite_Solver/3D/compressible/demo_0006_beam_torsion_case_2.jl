@@ -7,28 +7,23 @@ using IterativeSolvers
 using ComodoFerrite
 using ComodoFerrite.Ferrite
 
+## This is an example from felupe package : https://felupe.readthedocs.io/en/stable/
 
 ## GLMakie setting
 GLMakie.closeall()
 
-## Mesh
-boxDim = [10, 10, 10]
-boxEl = [5, 5, 5]
-E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
-grid = ComodoToFerrite(E, V)
+function create_grid(nx, ny, nz)
+    left  = Ferrite.Vec(-5.0, -5.0, 0.0)
+    right = Ferrite.Vec( 5.0,  5.0, 40.0)
 
-Fb_bottom = Fb[Cb .== 1]
-addface!(grid, "bottom", Fb_bottom)
+    return generate_grid(Hexahedron, (nx, ny, nz), left, right)
+end
 
-Fb_front = Fb[Cb .== 3]
-addface!(grid, "front", Fb_front)
+Lx, Ly, Lz = 10.0, 10.0, 40.0
 
-Fb_top = Fb[Cb .== 2]
-addface!(grid, "top", Fb_top)
+nx, ny, nz = 5, 5, 20
 
-Fb_left = Fb[Cb .== 6]
-addface!(grid, "left", Fb_left)
-
+grid = create_grid(nx, ny, nz)
 
 ## Finite Elemenet Values
 function create_values()
@@ -50,41 +45,41 @@ function create_dofhandler(grid)
     return dh
 end
 
-function create_bc(dh)
-    ch = Ferrite.ConstraintHandler(dh)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0], [3]) # bcSupportList_Z
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "front"), (x, t) -> [0.0], [2]) # bcSupportList_Y
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "left"), (x, t) -> [0.0], [1]) # bcSupportList_X
-    add!(ch, dbc)
-    dbc = Dirichlet(:u, getfacetset(dh.grid, "top"), (x, t) -> [t], [3]) # bcPrescribeList_Z
-    add!(ch, dbc)
-    Ferrite.close!(ch)
-    t = 0.0
-    Ferrite.update!(ch, t)
-    return ch
+function rotation_top(X, t)
+    θ = 2π * t
+
+    x, y, z = X
+
+    x_new = x * cos(θ) - y * sin(θ)
+    y_new = x * sin(θ) + y * cos(θ)
+
+    return Ferrite.Vec{3}((x_new - x, y_new - y, 0.0))
 end
 
-
+function create_bc(dh)
+    ch = Ferrite.ConstraintHandler(dh)
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "bottom"), (x, t) -> [0.0, 0.0, 0.0], [1, 2, 3]))
+    add!(ch, Dirichlet(:u, getfacetset(dh.grid, "top"), (x, t) -> rotation_top(x, t), [1, 2, 3]))
+    Ferrite.close!(ch)
+    Ferrite.update!(ch, 0.0)
+    return ch
+end
 struct NeoHooke
     μ::Float64
     λ::Float64
 end
 
-function Ψ(C, mp::NeoHooke)
+function Ψ(F, mp::NeoHooke)
     μ = mp.μ
     λ = mp.λ
-    Ic = tr(C)
-    J = sqrt(det(C))
+    Ic = tr(tdot(F))
+    J = det(F)
     return μ / 2 * (Ic - 3) - μ * log(J) + λ / 2 * (log(J))^2
 end
 
-function constitutive_driver(C, mp::NeoHooke)
-    ∂²Ψ∂C², ∂Ψ∂C = Tensors.hessian(y -> Ψ(y, mp), C, :all)
-    S = 2.0 * ∂Ψ∂C
-    ∂S∂C = 2.0 * ∂²Ψ∂C²
-    return S, ∂S∂C
+function constitutive_driver(F, mp::NeoHooke)
+    ∂²Ψ∂F², ∂Ψ∂F = Tensors.hessian(y -> Ψ(y, mp), F, :all)
+    return ∂Ψ∂F, ∂²Ψ∂F²
 end;
 
 
@@ -99,12 +94,8 @@ function assemble_element!(ke, ge, cell, cv, mp, ue)
         ∇u = function_gradient(cv, qp, ue)
         F = one(∇u) + ∇u
 
-        C = tdot(F) # F' ⋅ F
-        # Compute stress and tangent
-        S, ∂S∂C = constitutive_driver(C, mp)
-        P = F ⋅ S
-        I = one(S)
-        ∂P∂F = otimesu(I, S) + 2 * F ⋅ ∂S∂C ⊡ otimesu(F', I)
+        ∂Ψ∂F, ∂²Ψ∂F² = constitutive_driver(F, mp)
+        P = ∂Ψ∂F
 
         # Loop over test functions
         for i in 1:ndofs
@@ -112,7 +103,7 @@ function assemble_element!(ke, ge, cell, cv, mp, ue)
 
             ge[i] += (∇δui ⊡ P) * dΩ
 
-            ∇δui∂P∂F = ∇δui ⊡ ∂P∂F
+            ∇δui∂P∂F = ∇δui ⊡ ∂²Ψ∂F²
             for j in 1:ndofs
                 ∇δuj = shape_gradient(cv, qp, j)
 
@@ -234,13 +225,16 @@ function solve(E, ν, grid, displacement_prescribed, numSteps)
 end
 
 
+E, V, F, Fb, Cb = FerriteToComodo(grid)
+
+
 E = 10.0
 ν = 0.3
 
-displacement_prescribed = 5.0
-numSteps = 10
+## load factor
+displacement_prescribed = 1.0
+numSteps = 50
 UT, UT_mag, ut_mag_max = solve(E, ν, grid, displacement_prescribed, numSteps)
-
 numInc = length(UT)
 
 # Create displaced mesh per step
@@ -263,13 +257,12 @@ zlims!(ax3, min_p[3], max_p[3])
 
 hp = meshplot!(
     ax3, Fb, VT[stepStart + 1];
-    strokewidth = 2,
+    strokewidth = 0.5,
     color = UT_mag[stepStart + 1],
     transparency = false,
     colormap = Reverse(:Spectral),
     colorrange = (0, maximum(ut_mag_max))
 )
-
 
 Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
 
@@ -283,4 +276,10 @@ on(hSlider.value) do stepIndex
 end
 
 slidercontrol(hSlider, ax3)
+
+## for gif
+# record(fig_disp, "beam_twist.gif", 1:(numSteps+1); framerate=10) do i
+#     stepIndex = i - 1
+#     set_close_to!(hSlider, stepIndex)
+# end
 display(GLMakie.Screen(), fig_disp)
