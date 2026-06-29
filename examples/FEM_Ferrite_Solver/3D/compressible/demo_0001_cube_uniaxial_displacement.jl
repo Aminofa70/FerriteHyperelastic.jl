@@ -141,6 +141,22 @@ function assemble_global!(K, g, dh, cv, mp, u)
     return
 end;
 
+
+function get_top_dofs(dh, grid)
+    function dofs_for_component(comp)
+        ch_temp = ConstraintHandler(dh)
+        add!(ch_temp, Dirichlet(:u, getfacetset(grid, "top"), (x, t) -> [0.0], [comp]))
+        close!(ch_temp)
+        return ch_temp.prescribed_dofs
+    end
+
+    x_dofs = dofs_for_component(1)
+    y_dofs = dofs_for_component(2)
+    z_dofs = dofs_for_component(3)
+
+    return x_dofs, y_dofs, z_dofs
+end
+
 function solve(E, ν, grid, displacement_prescribed, numSteps)
 
     # --- Material ---
@@ -153,13 +169,17 @@ function solve(E, ν, grid, displacement_prescribed, numSteps)
     dbcs = create_bc(dh)
     cv, _ = create_values()
 
-
     nd = ndofs(dh)
-
 
     UT = Vector{Vector{Point{3, Float64}}}(undef, numSteps + 1)
     UT_mag = Vector{Vector{Float64}}(undef, numSteps + 1)
     ut_mag_max = zeros(Float64, numSteps + 1)
+
+    Fz = zeros(Float64, numSteps + 1)
+
+    # New curves from solver
+    time_curve = zeros(Float64, numSteps + 1)
+    disp_curve = zeros(Float64, numSteps + 1)
 
     # --- Newton vectors ---
     un = zeros(nd)
@@ -170,22 +190,33 @@ function solve(E, ν, grid, displacement_prescribed, numSteps)
     K = allocate_matrix(dh)
     g = zeros(nd)
 
-    # --- Parameters ---
     NEWTON_TOL = 1.0e-8
     NEWTON_MAXITER = 100
-
-    Tf = displacement_prescribed
-    Δt = Tf / numSteps
 
     # --- Initial condition ---
     apply!(un, dbcs)
     u .= un
 
-    # --- Time stepping (UNCHANGED) ---
-    for (step, t) in enumerate(0.0:Δt:Tf)
-        println("\n=== Time step $step, t = $t ===")
+    x_dofs, y_dofs, z_dofs = get_top_dofs(dh, grid)
 
-        Ferrite.update!(dbcs, t)
+    # --- Time stepping ---
+    for step in 0:numSteps
+
+        i = step + 1
+
+        # pseudo-time/load factor from 0 to 1
+        time = step / numSteps
+
+        # actual prescribed compression displacement
+        uz_prescribed = time * displacement_prescribed
+
+        time_curve[i] = time
+        disp_curve[i] = uz_prescribed
+
+        println("\n=== Step $step, time = $time, uz = $uz_prescribed ===")
+
+        # Important: update BC with displacement, not physical time
+        Ferrite.update!(dbcs, uz_prescribed)
 
         fill!(Δu, 0.0)
         newton_itr = 0
@@ -197,11 +228,12 @@ function solve(E, ν, grid, displacement_prescribed, numSteps)
             assemble_global!(K, g, dh, cv, mp, u)
 
             normg = norm(g[Ferrite.free_dofs(dbcs)])
+
             if normg < NEWTON_TOL
                 println("  Converged in $newton_itr iterations")
                 break
             elseif newton_itr ≥ NEWTON_MAXITER
-                error("Newton failed to converge at time t = $t")
+                error("Newton failed to converge at step = $step")
             end
 
             apply_zero!(K, g, dbcs)
@@ -216,71 +248,76 @@ function solve(E, ν, grid, displacement_prescribed, numSteps)
 
         un .= u
 
+        # --- Fz reaction force ---
+        assemble_global!(K, g, dh, cv, mp, u)
+        Fz[i] = sum(g[z_dofs])
+
+        println("  Fz = $(Fz[i])")
+
         # --- Postprocessing ---
         u_nodes = vec(evaluate_at_grid_nodes(dh, u, :u))
+
         ux = getindex.(u_nodes, 1)
         uy = getindex.(u_nodes, 2)
         uz = getindex.(u_nodes, 3)
 
-        disp_points = [Point{3, Float64}([ux[j], uy[j], uz[j]]) for j in eachindex(ux)]
+        disp_points = [ Point{3, Float64}([ux[j], uy[j], uz[j]])  for j in eachindex(ux)]
 
-
-        UT[step] = disp_points
-        UT_mag[step] = norm.(disp_points)
-        ut_mag_max[step] = maximum(UT_mag[step])
+        UT[i] = disp_points
+        UT_mag[i] = norm.(disp_points)
+        ut_mag_max[i] = maximum(UT_mag[i])
     end
 
-    return UT, UT_mag, ut_mag_max
+    return UT, UT_mag, ut_mag_max, Fz, time_curve, disp_curve
 end
 
 
-E = 10.0
-ν = 0.3
+E = 1.0
+ν = 0.4
 
-displacement_prescribed = 5.0
+displacement_prescribed = -5.0
 numSteps = 10
-UT, UT_mag, ut_mag_max = solve(E, ν, grid, displacement_prescribed, numSteps)
+UT, UT_mag, ut_mag_max, Fz, time_curve, disp_curve = solve(E, ν, grid, displacement_prescribed, numSteps)
 
+Fz_curve = Fz
+
+#########################################################
+## Visualization
+#########################################################
 numInc = length(UT)
-
-# Create displaced mesh per step
 scale = 1.0
-VT = [V .+ scale .* UT[i] for i in 1:(numSteps + 1)]
-incRange = 0:1:(numInc - 1)
+VT = [V .+ scale .* UT[i] for i in 1:numInc]
+min_p = minp([minp(Vi) for Vi in VT])
+max_p = maxp([maxp(Vi) for Vi in VT])
+incRange = 0:(numInc - 1)
+fig = Figure(size = (1600, 800))
+stepStart = 1
 
-min_p = minp([minp(V) for V in VT])
-max_p = maxp([maxp(V) for V in VT])
+ax1 = AxisGeom(fig[1, 1], title = "Step: $stepStart", limits = (min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3]) )
+hp1 = meshplot!(ax1, Fb, VT[stepStart + 1]; strokewidth = 2, color = UT_mag[stepStart + 1], transparency = false, colormap = Reverse(:Spectral), colorrange = (0.0, maximum(ut_mag_max)))
+Colorbar(fig[1, 2], hp1.plots[1], label = "Displacement magnitude [mm]")
 
-# === Visualization setup ===
-fig_disp = Figure(size = (1000, 600))
-stepStart = 1 # Start at undeformed
-ax3 = AxisGeom(fig_disp[1, 1], title = "Step: $stepStart")
+ax3 = Axis(fig[1, 3], title = "Step: $stepStart", aspect = AxisAspect(1), xlabel = "Time [s]", ylabel = "Force [N]")
+lines!(ax3, time_curve, Fz_curve, color = :red, linewidth = 3)
 
+hp3 = scatter!(ax3, Point{2, Float64}(time_curve[stepStart + 1], Fz_curve[stepStart + 1]); markersize = 15, color = :red)
+ax4 = Axis(fig[1, 4], title = "Step: $stepStart", aspect = AxisAspect(1), xlabel = "Max displacement [mm]", ylabel = "Force [N]")
 
-xlims!(ax3, min_p[1], max_p[1])
-ylims!(ax3, min_p[2], max_p[2])
-zlims!(ax3, min_p[3], max_p[3])
+lines!(ax4, ut_mag_max, Fz_curve, color = :blue, linewidth = 3)
+hp4 = scatter!(ax4, Point{2, Float64}(ut_mag_max[stepStart + 1], Fz_curve[stepStart + 1]); markersize = 15, color = :blue)
 
-hp = meshplot!(
-    ax3, Fb, VT[stepStart + 1];
-    strokewidth = 2,
-    color = UT_mag[stepStart + 1],
-    transparency = false,
-    colormap = Reverse(:Spectral),
-    colorrange = (0, maximum(ut_mag_max))
-)
-
-
-Colorbar(fig_disp[1, 2], hp.plots[1], label = "Displacement magnitude [mm]")
-
-hSlider = Slider(fig_disp[2, 1], range = incRange, startvalue = stepStart, linewidth = 30)
-
+hSlider = Slider(fig[2, :], range = incRange, startvalue = stepStart, linewidth = 30)
 on(hSlider.value) do stepIndex
-    i = stepIndex + 1   # shift to 1-based indexing
-    hp[1] = GeometryBasics.Mesh(VT[i], F)
-    hp.color = UT_mag[i]
+    i = stepIndex + 1
+    hp1[1] = GeometryBasics.Mesh(VT[i], F)
+    hp1.color = UT_mag[i]
+    hp3[1] = Point{2, Float64}(time_curve[i], Fz_curve[i])
+    hp4[1] = Point{2, Float64}(ut_mag_max[i], Fz_curve[i])
+    ax1.title = "Step: $stepIndex"
     ax3.title = "Step: $stepIndex"
+    ax4.title = "Step: $stepIndex"
 end
 
-slidercontrol(hSlider, ax3)
-display(GLMakie.Screen(), fig_disp)
+slidercontrol(hSlider, ax1)
+screen = display(GLMakie.Screen(), fig)
+GLMakie.set_title!(screen, "Neo-Hookean - Reaction Force")
