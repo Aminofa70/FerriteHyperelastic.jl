@@ -76,7 +76,7 @@ function constitutive_driver(C, mp::NeoHooke)
 end;
 
 # ### Solving Out-of-Plane Stretch (λ₃) via Newton Method
-function solve_lambda3(F2d, mp; tol = 1.0e-10, maxit = 25)
+function solve_lambda3(F2d, mp, qp; tol = 1.0e-10, maxit = 25)
     J2D = det(F2d)
     λ3₀ = inv(J2D)
 
@@ -126,7 +126,7 @@ function assemble_element!(ke, ge, cell, cv, mp, ue)
         ]
 
 
-        λ3 = solve_lambda3(F2d, mp)
+        λ3 = solve_lambda3(F2d, mp, qp)
 
         F = Tensor{2, 3, Float64}(
             (
