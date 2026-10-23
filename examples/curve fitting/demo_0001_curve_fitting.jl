@@ -1,4 +1,3 @@
-using Revise
 using FerriteHyperelastic
 a = [
     0    0

@@ -1,17 +1,16 @@
-using FESolvers
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using IterativeSolvers
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using SparseArrays, LinearAlgebra
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.FESolvers
 using Geogram
-
+## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
-
 ######
 # Control parameters
 E_youngs = 1.0

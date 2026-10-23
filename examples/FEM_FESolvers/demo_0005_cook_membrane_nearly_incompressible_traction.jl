@@ -1,26 +1,26 @@
-using FESolvers
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using IterativeSolvers
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using SparseArrays, LinearAlgebra
-using BlockArrays
-
-const FVec = Ferrite.Vec
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.FESolvers
+using FerriteHyperelastic.SparseArrays
+using FerriteHyperelastic.BlockArrays
 
 ## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
+
 
 function create_cook_grid(nx, ny)
     corners = [
-        FVec{2}((0.0, 0.0)),
-        FVec{2}((48.0, 44.0)),
-        FVec{2}((48.0, 60.0)),
-        FVec{2}((0.0, 44.0)),
+        Ferrite.Vec{2}((0.0, 0.0)),
+        Ferrite.Vec{2}((48.0, 44.0)),
+        Ferrite.Vec{2}((48.0, 60.0)),
+        Ferrite.Vec{2}((0.0, 44.0)),
     ]
     grid = generate_grid(Quadrilateral, (nx, ny), corners)
     addfacetset!(grid, "clamped", x -> norm(x[1]) ≈ 0.0)
@@ -271,7 +271,7 @@ struct CookModel{DH, CH, FS}
     ch::CH
     material::NeoHookean
     ΓN::FS
-    tn::FVec{2, Float64}
+    tn::Ferrite.Vec{2, Float64}
 end
 
 # ============================================================
@@ -360,7 +360,7 @@ dh = create_dofhandler(grid)
 ch = create_bc(dh)
 
 ΓN = getfacetset(grid, "traction")
-tn = FVec{2}((0.0, traction_value))
+tn = Ferrite.Vec{2}((0.0, traction_value))
 
 def = CookModel(dh, ch, mp, ΓN, tn)
 problem = build_problem(def)
@@ -440,7 +440,7 @@ min_p = minp([minp(VT[i]) for i in 1:numInc])
 max_p = maxp([maxp(VT[i]) for i in 1:numInc])
 
 # === Visualization setup ===
-fig_disp = Figure(size = (1000, 600))
+fig_disp = Figure(size = (800, 800))
 stepStart = 1
 ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
 

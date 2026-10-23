@@ -1,14 +1,16 @@
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using FESolvers
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.FESolvers
 
-const Vec = Ferrite.Vec
+
 ## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
 
 ## Mesh
@@ -17,17 +19,10 @@ boxEl = [10, 10, 10]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 grid = ComodoToFerrite(E, V)
 
-Fb_bottom = Fb[Cb .== 1]
-addface!(grid, "bottom", Fb_bottom)
-
-Fb_front = Fb[Cb .== 3]
-addface!(grid, "front", Fb_front)
-
-Fb_top = Fb[Cb .== 2]
-addface!(grid, "top", Fb_top)
-
-Fb_left = Fb[Cb .== 6]
-addface!(grid, "left", Fb_left)
+addface!(grid, "bottom", Fb[Cb .== 1])
+addface!(grid, "front", Fb[Cb .== 3])
+addface!(grid, "top", Fb[Cb .== 2])
+addface!(grid, "left", Fb[Cb .== 6])
 
 ## Finite Element Values
 function create_values()
@@ -180,7 +175,7 @@ struct NeoHookeModel{FS}
     ch::ConstraintHandler
     material::NeoHooke
     ΓN::FS
-    tn::Vec{3, Float64}
+    tn::Ferrite.Vec{3, Float64}
 end
 
 struct NeoHookeBuffer{CV, FV, KT, T}
@@ -251,7 +246,7 @@ ch = create_bc(dh)
 ## Neumann boundary (follower traction on top face)
 ΓN = getfacetset(grid, "top")
 traction = 0.6
-tn = Vec{3}((0.0, 0.0, traction))
+tn = Ferrite.Vec{3}((0.0, 0.0, traction))
 
 ## Build and solve
 def = NeoHookeModel(dh, ch, material, ΓN, tn)

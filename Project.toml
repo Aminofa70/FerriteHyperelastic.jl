@@ -1,15 +1,23 @@
 name = "FerriteHyperelastic"
 uuid = "5f508a8b-5ff6-47da-9b01-2d3825b799d4"
-authors = ["https://github.com/Aminofa70"]
 version = "0.1.0"
+authors = ["https://github.com/Aminofa70"]
 
 [deps]
 BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+ComodoFerrite = "4ccf3a29-4aa4-4027-a3be-f1f903a96b6c"
+FEBio = "c57eab10-e7d7-41f3-9039-a27761009b26"
+FESolvers = "79314e9b-2e6f-4d6d-a72d-515aa2604984"
 Ferrite = "c061ca5d-56c9-439f-9c0e-210fe06d3992"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
+HyperData = "42b0c7c0-8784-4dc1-a951-b8452052d1b1"
 IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -17,13 +25,27 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Tensors = "48a634ad-e948-5137-8d70-aa71f2a747f4"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
+[sources]
+ComodoFerrite = {rev = "main", url = "https://github.com/COMODO-research/ComodoFerrite.jl"}
+FEBio = {rev = "main", url = "https://github.com/febiosoftware/FEBio.jl"}
+FESolvers = {rev = "main", url = "https://github.com/KnutAM/FESolvers.jl"}
+HyperData = {rev = "main", url = "https://github.com/Aminofa70/HyperData.jl"}
+
 [compat]
 BlockArrays = "0.4.1, 1.7.1"
+CairoMakie = "0.15.16"
+ComodoFerrite = "1.0.0"
+FEBio = "0.1.0"
+FESolvers = "0.2.4"
 Ferrite = "0.3, 1"
+ForwardDiff = "1.4.6"
+GLMakie = "0.13.16"
 GeometryBasics = "0.1, 0.2, 0.3, 0.4, 0.5"
+HyperData = "1.0.0"
 IterativeSolvers = "0.9.4"
 LinearAlgebra = "1.6.7,1.11.0"
 LsqFit = "0.15.1"
+NonlinearSolve = "4.21.0"
 Printf = "1.6.7, 1.11.0"
 Roots = "2.2.10"
 SparseArrays = "1.6.7, 1.11.0"

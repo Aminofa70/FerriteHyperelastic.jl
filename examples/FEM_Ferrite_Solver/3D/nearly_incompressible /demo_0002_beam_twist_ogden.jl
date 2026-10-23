@@ -1,17 +1,19 @@
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using IterativeSolvers
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using SparseArrays
-using BlockArrays
-using Tensors
-using LinearAlgebra
-using DelimitedFiles
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.SparseArrays
+using FerriteHyperelastic.BlockArrays
+using FerriteHyperelastic.LinearAlgebra
 
+
+## GLMakie setting
+GLMakie.activate!()
+GLMakie.closeall()
 ## Geometry and Mesh Generation
 ## Hex_20 mesh type 
 function create_grid(Lx, Ly, Lz, nx, ny, nz)
@@ -683,9 +685,8 @@ max_p = maxp([maxp(V) for V in VT])
 
 #######
 # Visualization
-GLMakie.closeall()
 
-fig = Figure(size=(1200,1000))
+fig = Figure(size=(1100,500))
 stepStart = incRange[end]
 ax1 = AxisGeom(fig[1, 1], title = "Step: $stepStart", limits=(min_p[1], max_p[1], min_p[2], max_p[2], min_p[3], max_p[3]))
 hp1 = meshplot!(ax1, Fb, VT[end]; strokewidth=2, color=UT_mag[end], transparency=false, colormap = Reverse(:Spectral),colorrange=(0,maximum(ut_mag_max)))

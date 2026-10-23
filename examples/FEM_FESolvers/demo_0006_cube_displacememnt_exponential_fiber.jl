@@ -1,16 +1,15 @@
-using FESolvers
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using IterativeSolvers
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using SparseArrays, LinearAlgebra
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.FESolvers
 
-Vec = Ferrite.Vec
 ## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
 
 ## Mesh
@@ -102,7 +101,7 @@ end
 # Handles α = 0 limit: Ψ_fib = (ξ/β)(Iₙ - 1)^β
 # Handles α > 0:        Ψ_fib = (ξ/(αβ))(exp[α(Iₙ - 1)^β] - 1)
 function Ψ_fiber(C, mp::NeoHookeFiber)
-    n_r = Vec{3}((cos(mp.θ) * sin(mp.ϕ), sin(mp.θ) * sin(mp.ϕ), cos(mp.ϕ)))
+    n_r = Ferrite.Vec{3}((cos(mp.θ) * sin(mp.ϕ), sin(mp.θ) * sin(mp.ϕ), cos(mp.ϕ)))
     Iₙ = n_r ⋅ (C ⋅ n_r)
     λ₀ = 1.0
     I₀ = sqrt(λ₀)

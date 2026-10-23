@@ -1,15 +1,15 @@
-using FESolvers
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using IterativeSolvers
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using SparseArrays, LinearAlgebra
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.FESolvers
 
 ## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
 
 ## Mesh
@@ -17,18 +17,10 @@ boxDim = [5, 5, 5]
 boxEl = [10, 10, 10]
 E, V, F, Fb, Cb = hexbox(boxDim, boxEl)
 grid = ComodoToFerrite(E, V)
-
-Fb_bottom = Fb[Cb .== 1]
-addface!(grid, "bottom", Fb_bottom)
-
-Fb_front = Fb[Cb .== 3]
-addface!(grid, "front", Fb_front)
-
-Fb_top = Fb[Cb .== 2]
-addface!(grid, "top", Fb_top)
-
-Fb_left = Fb[Cb .== 6]
-addface!(grid, "left", Fb_left)
+addface!(grid, "bottom", Fb[Cb .== 1])
+addface!(grid, "front", Fb[Cb .== 3])
+addface!(grid, "top", Fb[Cb .== 2])
+addface!(grid, "left", Fb[Cb .== 6])
 
 
 ## Finite Elemenet Values

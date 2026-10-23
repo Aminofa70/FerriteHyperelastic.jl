@@ -1,7 +1,8 @@
-using Revise          # auto reload
 using FerriteHyperelastic
-using GLMakie
-using HyperData
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.HyperData
+
+GLMakie.activate!()
 
 # Read experimental data (uniaxial test)
 λ_exp, P_exp = read_data!(Treloar_1944, uniaxial)

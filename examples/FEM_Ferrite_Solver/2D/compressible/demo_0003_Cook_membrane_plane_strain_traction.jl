@@ -1,19 +1,22 @@
-using ComodoFerrite
-using ComodoFerrite.Comodo
-using ComodoFerrite.Ferrite
-using ComodoFerrite.Comodo.GeometryBasics
-using ForwardDiff, IterativeSolvers, Roots
-using ComodoFerrite.Comodo.GLMakie
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.ForwardDiff
+using FerriteHyperelastic.IterativeSolvers
+using FerriteHyperelastic.Roots
+using FerriteHyperelastic.GLMakie
 
-const Vec = Ferrite.Vec
+GLMakie.activate!()
 GLMakie.closeall()
+
 
 function create_cook_grid(nx, ny)
     corners = [
-        Vec{2}((0.0, 0.0)),
-        Vec{2}((48.0, 44.0)),
-        Vec{2}((48.0, 60.0)),
-        Vec{2}((0.0, 44.0)),
+        Ferrite.Vec{2}((0.0, 0.0)),
+        Ferrite.Vec{2}((48.0, 44.0)),
+        Ferrite.Vec{2}((48.0, 60.0)),
+        Ferrite.Vec{2}((0.0, 44.0)),
     ]
     grid = generate_grid(Quadrilateral, (nx, ny), corners)
     # facesets for boundary conditions
@@ -142,14 +145,14 @@ function assemble_element!(ke, ge, cell, cv, fv, mp, ue, ΓN, tn)
                 Cinv = inv(C)
 
                 N₀_2d = getnormal(fv, qp)
-                N₀ = Vec{3}((N₀_2d[1], N₀_2d[2], 0.0))
+                N₀ = Ferrite.Vec{3}((N₀_2d[1], N₀_2d[2], 0.0))
 
                 m = Cinv ⋅ N₀
                 α = N₀ ⋅ m
                 sqrtα = sqrt(α)
                 Φ = J * sqrtα
 
-                tn_vec = Vec{2}((tn[1], tn[2]))
+                tn_vec = Ferrite.Vec{2}((tn[1], tn[2]))
                 T0 = Φ * tn_vec
 
                 dΓ0 = getdetJdV(fv, qp)
@@ -322,7 +325,7 @@ min_p = minp([minp(VT[i]) for i in 1:numInc])
 max_p = maxp([maxp(VT[i]) for i in 1:numInc])
 
 # === Visualization setup ===
-fig_disp = Figure(size = (1000, 600))
+fig_disp = Figure(size = (800, 800))
 stepStart = 1
 ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
 

@@ -1,15 +1,19 @@
 # # Finite Element for uniaxial plane stress subjected to prescribed displacement
 
 # ### Dependencies
-using ComodoFerrite
-using ComodoFerrite.Comodo
-using ComodoFerrite.Ferrite
-using ComodoFerrite.Comodo.GeometryBasics
-using ForwardDiff, IterativeSolvers, Roots
-using IterativeSolvers, Roots
-using ComodoFerrite.Comodo.GLMakie
+using FerriteHyperelastic
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.ForwardDiff 
+using FerriteHyperelastic.IterativeSolvers
+using FerriteHyperelastic.Roots
+
 
 # ### Initialization of the plots
+GLMakie.activate!()
 GLMakie.closeall()
 
 # ### Creating a Rectangular Finite Element Grid with Boundary Node Sets
@@ -316,7 +320,7 @@ min_p = minp([minp(VT[i]) for i in 1:numInc])
 max_p = maxp([maxp(VT[i]) for i in 1:numInc])
 
 # ### Interactive Visualization of Deformation with Slider Control
-fig_disp = Figure(size = (1000, 600))
+fig_disp = Figure(size = (1000, 500))
 stepStart = 1
 ax3 = Axis(fig_disp[1, 1], title = "Step: $stepStart")
 

@@ -1,13 +1,15 @@
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using BlockArrays
-using Tensors
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.BlockArrays
+
 ## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
 
 ## Mesh

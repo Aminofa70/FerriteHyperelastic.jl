@@ -1,18 +1,18 @@
-using FESolvers
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using IterativeSolvers
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using SparseArrays, LinearAlgebra
-using BlockArrays
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.FESolvers
+using FerriteHyperelastic.SparseArrays
+using FerriteHyperelastic.BlockArrays
 
 ## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
-
 
 boxDim = [10, 10, 10]
 boxEl = [5, 5, 5]

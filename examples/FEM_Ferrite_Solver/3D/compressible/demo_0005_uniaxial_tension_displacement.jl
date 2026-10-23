@@ -1,15 +1,16 @@
-using NonlinearSolve
-using LinearAlgebra
-using Comodo
-using Comodo.GLMakie
-using Comodo.GLMakie.Colors
-using Comodo.GeometryBasics
-using Comodo.Statistics
-using IterativeSolvers
-using ComodoFerrite
-using ComodoFerrite.Ferrite
-using LinearSolve
+using FerriteHyperelastic
+using FerriteHyperelastic.Comodo
+using FerriteHyperelastic.LinearAlgebra
+using FerriteHyperelastic.GLMakie
+using FerriteHyperelastic.GLMakie.Colors
+using FerriteHyperelastic.ComodoFerrite
+using FerriteHyperelastic.GeometryBasics
+using FerriteHyperelastic.Ferrite
+using FerriteHyperelastic.Statistics
+using FerriteHyperelastic.NonlinearSolve
 
+## GLMakie setting
+GLMakie.activate!()
 GLMakie.closeall()
 
 pointSpacing = 2.0
@@ -141,24 +142,22 @@ function assemble_global_Jacobian!(K, dh, cv, mp, u)
 end;
 
 function assemble_global_residual!(g, dh, cv, mp, u)
-    fill!(g, 0.0)
+    fill!(g, zero(eltype(g)))
     n = ndofs_per_cell(dh)
-    ge = zeros(n)
-    # Loop over all cells in the grid
+    ge = zeros(eltype(u), n)
     for cell in CellIterator(dh)
         global_dofs = celldofs(cell)
-        ue = u[global_dofs] # element dofs
+        ue = u[global_dofs]
         Ferrite.reinit!(cv, cell)
-        fill!(ge, 0.0)
+        fill!(ge, zero(eltype(ge)))
         ndofs = getnbasefunctions(cv)
         for qp in 1:getnquadpoints(cv)
             dΩ = getdetJdV(cv, qp)
             ∇u = function_gradient(cv, qp, ue)
             F = one(∇u) + ∇u
-            C = tdot(F) # F' ⋅ F
+            C = tdot(F)
             S, _ = constitutive_driver(C, mp)
             P = F ⋅ S
-            # Loop over test functions
             for i in 1:ndofs
                 ∇δui = shape_gradient(cv, qp, i)
                 ge[i] += (∇δui ⊡ P) * dΩ
@@ -167,7 +166,7 @@ function assemble_global_residual!(g, dh, cv, mp, u)
         assemble!(g, global_dofs, ge)
     end
     return g
-end;
+end
 
 function f_nonlinear!(res, u, p)
     dh, mp, dbcs = p
